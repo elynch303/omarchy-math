@@ -2,13 +2,9 @@ import QtQuick
 
 // Balance-scale round for the intro levels (add/sub, levels 1-2).
 //
-// Addition "3 + 4": the left pan is loaded with 3 + 4 blocks. The kid drags
-//   blocks onto the right pan until the beam is level.
-// Subtraction "8 - 3": left pan has 8, right pan starts with 3; the kid adds
-//   blocks to the right until it balances (3 + ? = 8).
-//
-// No answer to pick — you discover it by balancing. Overshoot tips the beam;
-// tap a block on the right pan to take it back off.
+// The left pan is a number card ("5 + 2" / "8 - 3"). The kid builds the answer
+// on the right pan out of 1-, 5- and 10-blocks until the beam is level.
+// No answer to pick — balancing IS the answer.
 FocusScope {
   id: root
   property var game
@@ -18,21 +14,20 @@ FocusScope {
   onVisibleChanged: if (visible) forceActiveFocus()
 
   readonly property var q: (game && game.questions.length > game.qIndex) ? game.questions[game.qIndex] : null
-  readonly property bool isAdd: q ? q.world === "add" : true
-  readonly property int a: q ? q.operands[0] : 0
-  readonly property int b: q ? q.operands[1] : 0
   readonly property int answer: q ? q.answer : 0
   readonly property color tint: {
     var c = (game && game.worldColor && q) ? game.worldColor[q.world] : ""
     return c ? c : "#5bc98c"
   }
 
-  readonly property int leftWeight: isAdd ? (a + b) : a
-  readonly property int startRight: isAdd ? 0 : b
-  readonly property int added: pool ? pool.taken : 0
-  readonly property int rightWeight: startRight + added
-  readonly property bool balanced: phase === "play" && rightWeight === leftWeight
-  readonly property int poolSize: leftWeight + 3
+  property var panStack: []
+  readonly property int rightWeight: {
+    var s = 0
+    for (var i = 0; i < panStack.length; i++) s += panStack[i]
+    return s
+  }
+  readonly property bool balanced: phase === "play" && rightWeight === answer && answer > 0
+  readonly property int diff: rightWeight - answer
 
   property string phase: "play"   // play | won
   property int overshoots: 0
@@ -42,18 +37,35 @@ FocusScope {
   function reset() {
     phase = "play"
     overshoots = 0
-    if (pool) pool.rebuild()
+    panStack = []
   }
 
-  // dev/harness helpers
-  function devTakeOne() { if (pool) pool.takeLast() }
-  function devBalance() {
-    var guard = 0
-    while (rightWeight < leftWeight && pool && guard++ < 60) pool.takeLast()
+  function addPiece(v) {
+    if (phase !== "play") return
+    var s = panStack.slice()
+    s.push(v)
+    panStack = s
+    if (rightWeight > answer) overshoots += 1
   }
+  function removePiece(i) {
+    if (phase !== "play" || i < 0 || i >= panStack.length) return
+    var s = panStack.slice()
+    s.splice(i, 1)
+    panStack = s
+  }
+  // dev/harness
+  function devBalance() {
+    reset()
+    var left = answer
+    var s = []
+    while (left >= 10) { s.push(10); left -= 10 }
+    while (left >= 5) { s.push(5); left -= 5 }
+    while (left >= 1) { s.push(1); left -= 1 }
+    panStack = s
+  }
+  function devTakeOne() { addPiece(1) }
 
   onBalancedChanged: if (balanced) winTimer.restart()
-  onRightWeightChanged: if (phase === "play" && rightWeight > leftWeight) root.overshoots += 1
 
   Timer {
     id: winTimer
@@ -62,7 +74,7 @@ FocusScope {
       if (!root.balanced) return
       root.phase = "won"
       confetti.burst()
-      root.game.submit(root.answer)   // balancing IS the answer
+      root.game.submit(root.answer)
       nextTimer.restart()
     }
   }
@@ -75,13 +87,15 @@ FocusScope {
   Keys.onEscapePressed: root.quit()
   Keys.onPressed: function (event) {
     if (root.phase !== "play") return
-    if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
-      // keyboard fallback: nudge toward balance
-      if (root.rightWeight < root.leftWeight && pool) pool.takeLast()
-      else if (root.rightWeight > root.leftWeight && pool) pool.giveBack()
+    if (event.key === Qt.Key_1) { root.addPiece(1); event.accepted = true }
+    else if (event.key === Qt.Key_5) { root.addPiece(5); event.accepted = true }
+    else if (event.key === Qt.Key_0) { root.addPiece(10); event.accepted = true }
+    else if (event.key === Qt.Key_Backspace && root.panStack.length > 0) {
+      root.removePiece(root.panStack.length - 1); event.accepted = true
+    } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Space)) {
+      if (root.rightWeight < root.answer) root.addPiece(1)
+      else if (root.rightWeight > root.answer && root.panStack.length > 0) root.removePiece(root.panStack.length - 1)
       event.accepted = true
-    } else if (event.key === Qt.Key_Backspace && pool) {
-      pool.giveBack(); event.accepted = true
     }
   }
 
@@ -91,7 +105,6 @@ FocusScope {
     width: Math.min(parent.width - 48, 640)
     spacing: Math.round(12 * (game ? game.textScale : 1))
 
-    // top bar
     Item {
       width: parent.width
       height: 30
@@ -125,39 +138,27 @@ FocusScope {
       horizontalAlignment: Text.AlignHCenter
       text: {
         if (root.phase === "won") return "Balanced! 🎉"
-        if (root.rightWeight > root.leftWeight) return "Too many — take some off"
-        if (root.rightWeight === root.leftWeight) return "…"
-        return root.isAdd ? "Add blocks to balance the scale"
-                          : "Fill the other side to match"
+        if (root.diff > 0) return "Too much — take some off"
+        if (root.diff === 0 && root.rightWeight > 0) return "…"
+        return "Build the answer to balance the scale"
       }
       color: root.phase === "won" ? (game ? game.colCorrect : "#63d0a0")
-           : root.rightWeight > root.leftWeight ? (game ? game.colWrong : "#f4a6c0")
+           : root.diff > 0 ? (game ? game.colWrong : "#f4a6c0")
            : (game ? game.colText : "#edeffb")
       font.family: game ? game.fontFamily : "sans-serif"
       font.pixelSize: Math.round(21 * (game ? game.textScale : 1))
       font.bold: true
     }
 
-    Text {
-      width: parent.width
-      horizontalAlignment: Text.AlignHCenter
-      text: root.q ? (root.q.text + " = " + (root.phase === "won" ? root.answer : "?")) : ""
-      color: game ? game.colMuted : "#9aa2c8"
-      font.family: game ? game.fontFamily : "sans-serif"
-      font.pixelSize: Math.round(16 * (game ? game.textScale : 1))
-    }
-
     // ---- the scale --------------------------------------------------
     Item {
       id: scale
       width: parent.width
-      height: Math.round(228 * (game ? game.textScale : 1))
+      height: Math.round(210 * (game ? game.textScale : 1))
 
-      readonly property real diff: root.rightWeight - root.leftWeight
-      readonly property real tilt: Math.max(-11, Math.min(11, diff * 3.2))
-      readonly property real pivotY: height * 0.46   // beam's centre of rotation
+      readonly property real tilt: Math.max(-11, Math.min(11, root.diff * 3.2))
+      readonly property real pivotY: height * 0.5
 
-      // stand
       Rectangle {
         width: 12
         height: parent.height - parent.pivotY
@@ -166,9 +167,8 @@ FocusScope {
         x: parent.width / 2 - 6
         y: parent.pivotY
       }
-      // fulcrum triangle, apex at the pivot
       Canvas {
-        width: 46; height: 34
+        width: 46; height: 32
         x: parent.width / 2 - 23
         y: parent.pivotY
         onPaint: {
@@ -176,18 +176,14 @@ FocusScope {
           ctx.reset()
           ctx.fillStyle = root.tint
           ctx.beginPath()
-          ctx.moveTo(width / 2, 0)
-          ctx.lineTo(width, height)
-          ctx.lineTo(0, height)
-          ctx.closePath()
-          ctx.fill()
+          ctx.moveTo(width / 2, 0); ctx.lineTo(width, height); ctx.lineTo(0, height)
+          ctx.closePath(); ctx.fill()
         }
       }
 
-      // beam
       Rectangle {
         id: beam
-        width: Math.min(parent.width * 0.72, 420)
+        width: Math.min(parent.width * 0.74, 440)
         height: 14
         radius: 7
         color: root.tint
@@ -201,14 +197,13 @@ FocusScope {
         }
 
         BalancePan {
-          id: leftPan
           x: -width / 2 + beam.height / 2
           y: beam.height
           counterRotation: -beam.rotation
           tint: root.tint
           reduceMotion: game ? game.reduceMotion : false
-          count: root.leftWeight
-          split: root.isAdd ? root.a : -1
+          fontFamily: game ? game.fontFamily : "sans-serif"
+          cardLabel: root.q ? root.q.text : ""
         }
         BalancePan {
           id: rightPan
@@ -217,36 +212,33 @@ FocusScope {
           counterRotation: -beam.rotation
           tint: root.tint
           reduceMotion: game ? game.reduceMotion : false
-          count: root.rightWeight
-          fixedCount: root.startRight
+          pieces: root.panStack
           removable: root.phase === "play"
           dropActive: root.phase === "play"
-          highlight: root.balanced
-          onRemoveTapped: if (pool) pool.giveBack()
+          highlight: root.balanced || root.phase === "won"
+          onPieceTapped: function (i) { root.removePiece(i) }
         }
       }
     }
 
-    // ---- the pool ------------------------------------------------
-    DragBlockField {
-      id: pool
+    // ---- the palette: 10s, 5s, 1s -------------------------------
+    PvPalette {
+      id: pvPalette
       anchors.horizontalCenter: parent.horizontalCenter
       visible: root.phase === "play"
-      total: root.poolSize
-      takeCount: root.poolSize
       tint: root.tint
       reduceMotion: game ? game.reduceMotion : false
       targetArea: rightPan.dropArea
+      onPick: function (v) { root.addPiece(v) }
     }
 
     Mascot {
       anchors.horizontalCenter: parent.horizontalCenter
-      implicitWidth: 52
-      implicitHeight: 52
+      implicitWidth: 50
+      implicitHeight: 50
       reduceMotion: game ? game.reduceMotion : false
       bodyColor: root.tint
-      mood: root.phase === "won" ? "happy"
-          : root.rightWeight > root.leftWeight ? "oops" : "idle"
+      mood: root.phase === "won" ? "happy" : root.diff > 0 ? "oops" : "idle"
     }
   }
 

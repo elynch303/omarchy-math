@@ -72,12 +72,11 @@ Window {
         case 17: grab("7-balance-add-start"); break
         case 18: game.devBlockRound.devTakeOne(); game.devBlockRound.devTakeOne(); break
         case 19: grab("8-balance-tilting"); break
-        case 20: game.devBlockRound.devBalance(); break
-        case 22: grab("9-balance-balanced"); break
-        case 23: game.screen = "home"; break
-        case 24: game.openWorld("sub"); game.startLevel(2); break
-        case 25: grab("10-balance-sub-start"); break
-        case 26: Qt.quit(); break
+        case 20: game.devBlockRound.devBalance(); grab("9-balance-balanced"); break
+        case 22: game.screen = "home"; break
+        case 23: game.openWorld("sub"); game.startLevel(2); break
+        case 24: grab("10-balance-sub-start"); break
+        case 25: Qt.quit(); break
       }
     }
   }

@@ -1,31 +1,34 @@
 import QtQuick
 
 // One pan of the balance scale. Hangs from a beam end; `counterRotation` keeps
-// it upright while the beam tilts. Shows `count` blocks; the first `fixedCount`
-// can't be removed, the rest are tap-to-take-off.
+// it upright while the beam tilts.
+//   - set `cardLabel` to show a number card (the "known" side)
+//   - or set `pieces` (a list of block values) to show place-value blocks the
+//     kid can tap to take back off
 Item {
   id: pan
   property color tint: "#5bc98c"
   property bool reduceMotion: false
-  property int count: 0
-  property int fixedCount: 0
-  property int split: -1
   property real counterRotation: 0
   property bool removable: true
   property bool dropActive: true
   property bool highlight: false
-  signal removeTapped()
+  property string cardLabel: ""
+  property var pieces: []
+  property string fontFamily: "sans-serif"
+  signal pieceTapped(int index)
 
   readonly property alias dropArea: drop
+  readonly property bool isCard: cardLabel.length > 0
 
-  width: 150
+  width: 168
   height: 150
   rotation: counterRotation
   transformOrigin: Item.Top
 
   // hanger
-  Rectangle { x: pan.width * 0.2; width: 2; height: 24; color: Qt.rgba(1, 1, 1, 0.22) }
-  Rectangle { x: pan.width * 0.8 - 2; width: 2; height: 24; color: Qt.rgba(1, 1, 1, 0.22) }
+  Rectangle { x: pan.width * 0.22; width: 2; height: 24; color: Qt.rgba(1, 1, 1, 0.22) }
+  Rectangle { x: pan.width * 0.78 - 2; width: 2; height: 24; color: Qt.rgba(1, 1, 1, 0.22) }
 
   Rectangle {
     id: dish
@@ -43,37 +46,53 @@ Item {
   DropArea {
     id: drop
     anchors.fill: parent
-    enabled: pan.dropActive
+    enabled: pan.dropActive && !pan.isCard
   }
 
-  Grid {
+  // number card
+  Rectangle {
+    visible: pan.isCard
+    anchors.bottom: dish.top
+    anchors.bottomMargin: 6
+    anchors.horizontalCenter: parent.horizontalCenter
+    width: cardText.implicitWidth + 28
+    height: cardText.implicitHeight + 16
+    radius: 12
+    color: Qt.rgba(1, 1, 1, 0.07)
+    border.width: 2
+    border.color: Qt.rgba(pan.tint.r, pan.tint.g, pan.tint.b, 0.6)
+    Text {
+      id: cardText
+      anchors.centerIn: parent
+      text: pan.cardLabel
+      color: "#edeffb"
+      font.family: pan.fontFamily
+      font.pixelSize: 26
+      font.bold: true
+    }
+  }
+
+  // place-value blocks, tallest first, bottom-aligned on the dish
+  Row {
+    visible: !pan.isCard
     anchors.bottom: dish.top
     anchors.bottomMargin: 3
     anchors.horizontalCenter: parent.horizontalCenter
-    columns: 5
-    verticalItemAlignment: Grid.AlignBottom
-    flow: Grid.LeftToRight
     spacing: 3
     Repeater {
-      model: pan.count
-      delegate: Item {
+      model: pan.pieces
+      delegate: PvBlock {
+        required property var modelData
         required property int index
-        readonly property bool isFixed: index < pan.fixedCount
-        readonly property bool gapBefore: pan.split > 0 && index === pan.split && (index % 5) !== 0
-        width: 20 + (gapBefore ? 8 : 0)
-        height: 20
-        Block {
-          width: 20; height: 20
-          anchors.right: parent.right
-          tint: pan.tint
-          reduceMotion: pan.reduceMotion
-          opacity: parent.isFixed ? 0.7 : 1
-        }
+        value: modelData
+        tint: pan.tint
+        reduceMotion: pan.reduceMotion
+        anchors.bottom: parent.bottom
         MouseArea {
           anchors.fill: parent
-          enabled: pan.removable && !parent.isFixed
-          cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-          onClicked: pan.removeTapped()
+          enabled: pan.removable
+          cursorShape: Qt.PointingHandCursor
+          onClicked: pan.pieceTapped(index)
         }
       }
     }
