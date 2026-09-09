@@ -1,10 +1,15 @@
 import QtQuick
-import "../logic/progression.js" as Progression
 
-// Hands-on round for the intro levels (add/sub, levels 1-3). Kids drag groups
-// of blocks together (addition) or drag blocks into the bin (subtraction),
-// watch them count, then tap the total. Same Game round state as RoundScreen,
-// so scoring / streak / stars are unchanged.
+// Hands-on round for the intro levels (add/sub, levels 1-3).
+//
+//   play   - drag the two groups into the box (add), or drag blocks out to the
+//            bin (sub)
+//   merge  - the blocks tumble in and the lid slams shut (short)
+//   closed - the box is shut with a "?" ; kid taps how many are inside
+//   reveal - the lid opens and the blocks count themselves up
+//   done   - mascot reacts, tap / Enter to continue
+//
+// Shares Game round state, so scoring / streak / stars are unchanged.
 FocusScope {
   id: root
   property var game
@@ -23,82 +28,88 @@ FocusScope {
     return c ? c : "#5bc98c"
   }
 
-  // play  -> drag things around
-  // count -> blocks count themselves up
-  // confirm -> tap the total
-  // done -> feedback, then advance
   property string phase: "play"
   property int countShown: 0
   property int chosen: -1
 
-  // addition: which groups have been poured into the basket
   property bool pouredA: false
   property bool pouredB: false
-  readonly property int basketCount: (pouredA ? a : 0) + (pouredB ? b : 0)
-  // subtraction: how many blocks sent to the bin
+  readonly property int inBox: (pouredA ? a : 0) + (pouredB ? b : 0)
   property int removed: 0
 
+  // how tall the box must be to hold the subtraction field
+  readonly property real subBoxHeight: {
+    var cols = a <= 14 ? 5 : 7
+    var cell = a <= 14 ? 44 : 38
+    return Math.ceil(Math.max(1, a) / cols) * cell + 22
+  }
+
   onQChanged: root.reset()
+  Component.onCompleted: root.reset()
   function reset() {
     phase = "play"; countShown = 0; chosen = -1
     pouredA = false; pouredB = false; removed = 0
-    if (typeof subField !== "undefined" && subField) subField.rebuild()
+    if (subField) subField.rebuild()
   }
 
-  // called by the basket drop handler (and by dev/shoot.qml)
   function pourGroup(which) {
     if (phase !== "play") return
     if (which === "A") pouredA = true
     else if (which === "B") pouredB = true
-    if (basketCount === total) startCount()
+    if (inBox === total) startMerge()
   }
 
-  function startCount() {
-    phase = "count"
-    countShown = 0
-    countTimer.restart()
+  function startMerge() {
+    phase = "merge"
+    mergeTimer.restart()
   }
-  function pick(value) {
-    if (phase !== "confirm") return
+  function startReveal(value) {
+    if (phase !== "closed") return
     chosen = value
     var right = game.submit(value)
-    phase = "done"
+    phase = "reveal"
+    countShown = 0
+    countTimer.restart()
     if (right) confetti.burst()
-    doneTimer.restart()
   }
   function proceed() { doneTimer.stop(); game.next() }
 
   Timer {
+    id: mergeTimer
+    interval: root.game && root.game.reduceMotion ? 150 : 650
+    onTriggered: root.phase = "closed"
+  }
+  Timer {
     id: countTimer
-    interval: 260
+    interval: 240
     repeat: true
     onTriggered: {
       root.countShown += 1
-      if (root.countShown >= root.total) { stop(); root.phase = "confirm" }
+      if (root.countShown >= root.total) { stop(); root.phase = "done"; doneTimer.restart() }
     }
   }
   Timer {
     id: doneTimer
-    interval: root.chosen === root.total ? 900 : 1500
+    interval: root.chosen === root.total ? 1100 : 1700
     onTriggered: root.proceed()
   }
 
   Keys.onEscapePressed: root.quit()
   Keys.onPressed: function (event) {
-    if (root.phase === "confirm" && event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
+    if (root.phase === "closed" && event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
       var opts = root.confirmOptions
-      if (event.key - Qt.Key_1 < opts.length) root.pick(opts[event.key - Qt.Key_1])
+      if (event.key - Qt.Key_1 < opts.length) root.startReveal(opts[event.key - Qt.Key_1])
       event.accepted = true
     } else if (root.phase === "done" && (event.key === Qt.Key_Return || event.key === Qt.Key_Space)) {
       root.proceed(); event.accepted = true
     }
   }
 
-  // three gentle numbers for the confirm step (answer plus close neighbours).
+  // gentle numbers for the closed step: the answer plus close neighbours
   readonly property var confirmOptions: {
     if (!q) return []
-    var near = [root.total - 1, root.total + 1, root.total - 2, root.total + 2]
-    var out = [root.total]
+    var near = [total - 1, total + 1, total - 2, total + 2]
+    var out = [total]
     for (var i = 0; i < near.length && out.length < 3; i++)
       if (near[i] >= 0 && out.indexOf(near[i]) === -1) out.push(near[i])
     var shift = game ? game.qIndex % out.length : 0
@@ -108,10 +119,10 @@ FocusScope {
   // ---------------------------------------------------------------- layout
   Column {
     anchors.centerIn: parent
-    width: Math.min(parent.width - 56, 640)
-    spacing: Math.round(18 * (game ? game.textScale : 1))
+    width: Math.min(parent.width - 56, 620)
+    spacing: Math.round(16 * (game ? game.textScale : 1))
 
-    // top bar: progress dots + quit
+    // top bar
     Item {
       width: parent.width
       height: 30
@@ -140,15 +151,16 @@ FocusScope {
       }
     }
 
-    // instruction
     Text {
       width: parent.width
       horizontalAlignment: Text.AlignHCenter
       text: {
-        if (root.phase === "count") return "Let's count…"
-        if (root.phase === "confirm") return "How many now?"
+        if (root.phase === "merge") return "…"
+        if (root.phase === "closed") return "How many in the box?"
+        if (root.phase === "reveal") return "Let's check…"
         if (root.phase === "done") return root.chosen === root.total ? "You got it!" : ("It's " + root.total)
-        return root.isAdd ? "Drag the blocks together" : ("Drag " + root.b + " block" + (root.b === 1 ? "" : "s") + " to the bin")
+        return root.isAdd ? "Drag both groups into the box"
+                          : ("Drag " + root.b + " block" + (root.b === 1 ? "" : "s") + " out to the bin")
       }
       color: root.phase === "done" && root.chosen === root.total ? (game ? game.colCorrect : "#63d0a0")
            : (game ? game.colText : "#edeffb")
@@ -157,56 +169,113 @@ FocusScope {
       font.bold: true
     }
 
-    // the equation, small, as a reference
     Text {
       width: parent.width
       horizontalAlignment: Text.AlignHCenter
-      text: root.q ? root.q.text + " = " + (root.phase === "done" ? root.total : "?") : ""
+      text: root.q ? (root.q.text + " = " + (root.phase === "done" ? root.total : "?")) : ""
       color: game ? game.colMuted : "#9aa2c8"
       font.family: game ? game.fontFamily : "sans-serif"
       font.pixelSize: Math.round(17 * (game ? game.textScale : 1))
     }
 
-    // ---- play area -------------------------------------------------
+    // ---- stage -----------------------------------------------------
     Item {
       id: stage
       width: parent.width
-      height: Math.round(224 * (game ? game.textScale : 1))
+      height: Math.round(Math.max(258, box.height + 96) * (game ? game.textScale : 1))
 
-      // ===== the counting / result tray (shared by both modes) =====
-      Column {
-        anchors.centerIn: parent
-        spacing: 10
-        visible: root.phase === "count" || root.phase === "confirm" || root.phase === "done"
+      // the box — the subtraction tray, the addition drop target, and the
+      // count-up display, depending on phase.
+      BlockBox {
+        id: box
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(parent.width * 0.72, 380)
+        height: root.isAdd ? 116 : Math.max(116, root.subBoxHeight)
+        tint: root.tint
+        reduceMotion: game ? game.reduceMotion : false
+        // open except while the kid is answering
+        lidOpen: root.phase !== "closed"
 
-        Text {
-          anchors.horizontalCenter: parent.horizontalCenter
-          // Shown while counting and after answering — hidden during "confirm"
-          // so the kid counts the blocks rather than reading the number.
-          text: root.phase === "count" ? root.countShown
-              : root.phase === "done" ? root.total : " "
-          color: root.tint
-          font.family: game ? game.fontFamily : "sans-serif"
-          font.pixelSize: Math.round(64 * (game ? game.textScale : 1))
-          font.bold: true
+        // subtraction: the blocks the kid drags OUT sit in the box
+        SubBlockField {
+          id: subField
+          anchors.centerIn: parent
+          visible: !root.isAdd && root.phase === "play"
+          total: root.a
+          toRemove: root.b
+          tint: root.tint
+          reduceMotion: game ? game.reduceMotion : false
+          binArea: bin
+          onRemovedChanged: root.removed = removed
+          onAllRemoved: root.startMerge()
         }
+
+        // the pile / count-up
         Grid {
-          anchors.horizontalCenter: parent.horizontalCenter
-          columns: Math.min(10, root.total)
-          spacing: 6
+          anchors.centerIn: parent
+          visible: root.phase === "merge" || root.phase === "reveal" || root.phase === "done"
+                   || (root.isAdd && root.inBox > 0)
+          columns: Math.min(10, Math.max(1, root.total))
+          spacing: 5
           Repeater {
-            model: root.total
+            model: (root.phase === "reveal" || root.phase === "done") ? root.total
+                 : root.isAdd ? root.inBox : (root.a - root.removed)
             delegate: Block {
               required property int index
               tint: root.tint
-              lit: root.phase !== "count" || index < root.countShown
               reduceMotion: game ? game.reduceMotion : false
+              lit: root.phase !== "reveal" || index < root.countShown
+              width: 26; height: 26
+            }
+          }
+        }
+
+        Text {
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.bottom: parent.top
+          anchors.bottomMargin: 4
+          visible: root.phase === "reveal" || root.phase === "done"
+          text: root.phase === "reveal" ? root.countShown : root.total
+          color: root.tint
+          font.family: game ? game.fontFamily : "sans-serif"
+          font.pixelSize: Math.round(44 * (game ? game.textScale : 1))
+          font.bold: true
+        }
+      }
+
+      // SUBTRACTION: the bin, beside the box
+      DropArea {
+        id: bin
+        width: 112
+        height: 116
+        anchors.right: parent.right
+        anchors.verticalCenter: box.verticalCenter
+        visible: !root.isAdd && root.phase === "play"
+        Rectangle {
+          anchors.fill: parent
+          radius: 16
+          color: bin.containsDrag && root.removed < root.b
+                 ? Qt.rgba(0.95, 0.5, 0.55, 0.22) : Qt.rgba(1, 1, 1, 0.05)
+          border.width: 2
+          border.color: Qt.rgba(0.95, 0.55, 0.6, 0.5)
+          Column {
+            anchors.centerIn: parent
+            spacing: 3
+            Text { anchors.horizontalCenter: parent.horizontalCenter; text: "🗑"; font.pixelSize: 30 }
+            Text {
+              anchors.horizontalCenter: parent.horizontalCenter
+              text: root.removed + " / " + root.b
+              color: game ? game.colMuted : "#9aa2c8"
+              font.family: game ? game.fontFamily : "sans-serif"
+              font.pixelSize: 14
+              font.bold: true
             }
           }
         }
       }
 
-      // ===== ADDITION: two draggable groups + a basket =====
+      // ADDITION: drop target over the box + the two draggable groups
       Item {
         id: addArea
         anchors.fill: parent
@@ -214,8 +283,12 @@ FocusScope {
 
         function place() {
           if (width <= 0) return
-          if (!groupA.dragging) { groupA.restX = Math.round(width * 0.04); groupA.restY = 6 }
-          if (!groupB.dragging) { groupB.restX = Math.round(width * 0.96 - groupB.width); groupB.restY = 6 }
+          if (!groupA.dragging) { groupA.restX = Math.round(width * 0.12); groupA.restY = 2 }
+          if (!groupB.dragging) { groupB.restX = Math.round(width * 0.88 - groupB.width); groupB.restY = 2 }
+          groupA.sinkX = box.x + box.width / 2 - groupA.width / 2
+          groupA.sinkY = box.y + box.height / 2 - groupA.height / 2
+          groupB.sinkX = box.x + box.width / 2 - groupB.width / 2
+          groupB.sinkY = box.y + box.height / 2 - groupB.height / 2
         }
         onWidthChanged: place()
         onVisibleChanged: if (visible) place()
@@ -223,122 +296,41 @@ FocusScope {
         Connections { target: groupB; function onWidthChanged() { addArea.place() } }
 
         DropArea {
-          id: basket
-          width: Math.min(parent.width * 0.72, 420)
-          height: 106
-          anchors.horizontalCenter: parent.horizontalCenter
-          y: parent.height - height - 2
+          anchors.fill: box
           keys: ["A", "B"]
           onDropped: function (drop) {
             root.pourGroup(drop.keys.length > 0 ? drop.keys[0] : "")
             drop.accept()
           }
-          Rectangle {
-            anchors.fill: parent
-            radius: 18
-            color: basket.containsDrag ? Qt.rgba(root.tint.r, root.tint.g, root.tint.b, 0.2) : Qt.rgba(1, 1, 1, 0.05)
-            border.width: 2
-            border.color: basket.containsDrag ? root.tint : Qt.rgba(1, 1, 1, 0.14)
-            Text {
-              anchors.centerIn: parent
-              text: root.basketCount > 0 ? "" : "drop the blocks here"
-              color: game ? game.colMuted : "#9aa2c8"
-              opacity: 0.7
-              font.family: game ? game.fontFamily : "sans-serif"
-              font.pixelSize: 15
-            }
-            Grid {
-              anchors.centerIn: parent
-              columns: Math.min(10, Math.max(1, root.basketCount))
-              spacing: 4
-              Repeater {
-                model: root.basketCount
-                delegate: Block { tint: root.tint; reduceMotion: game ? game.reduceMotion : false; width: 26; height: 26 }
-              }
-            }
-          }
         }
 
         BlockGroup {
           id: groupA
-          groupId: "A"
-          count: root.a
-          tint: root.tint
+          groupId: "A"; count: root.a; tint: root.tint
           poured: root.pouredA
           reduceMotion: game ? game.reduceMotion : false
         }
         BlockGroup {
           id: groupB
-          groupId: "B"
-          count: root.b
-          tint: root.tint
+          groupId: "B"; count: root.b; tint: root.tint
           poured: root.pouredB
           reduceMotion: game ? game.reduceMotion : false
         }
       }
 
-      // ===== SUBTRACTION: a field of blocks + a bin =====
-      Item {
-        anchors.fill: parent
-        visible: !root.isAdd && root.phase === "play"
-
-        DropArea {
-          id: bin
-          width: 128
-          height: 150
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          Rectangle {
-            anchors.fill: parent
-            radius: 16
-            color: bin.containsDrag && root.removed < root.b
-                   ? Qt.rgba(0.95, 0.5, 0.55, 0.22) : Qt.rgba(1, 1, 1, 0.05)
-            border.width: 2
-            border.color: Qt.rgba(0.95, 0.55, 0.6, 0.5)
-            Column {
-              anchors.centerIn: parent
-              spacing: 4
-              Text { anchors.horizontalCenter: parent.horizontalCenter; text: "🗑"; font.pixelSize: 34 }
-              Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: root.removed + " / " + root.b
-                color: game ? game.colMuted : "#9aa2c8"
-                font.family: game ? game.fontFamily : "sans-serif"
-                font.pixelSize: 15
-                font.bold: true
-              }
-            }
-          }
-        }
-
-        SubBlockField {
-          id: subField
-          anchors.left: parent.left
-          anchors.leftMargin: 8
-          anchors.verticalCenter: parent.verticalCenter
-          total: root.a
-          toRemove: root.b
-          tint: root.tint
-          reduceMotion: game ? game.reduceMotion : false
-          binArea: bin
-          onRemovedChanged: root.removed = removed
-          onAllRemoved: root.startCount()
-        }
-      }
     }
 
-    // ---- confirm buttons ------------------------------------------
+    // ---- closed: tap how many ------------------------------------
     Row {
       anchors.horizontalCenter: parent.horizontalCenter
       spacing: 14
-      visible: root.phase === "confirm"
+      visible: root.phase === "closed"
       Repeater {
         model: root.confirmOptions
         delegate: Rectangle {
           required property var modelData
-          required property int index
-          width: Math.round(84 * (game ? game.textScale : 1))
-          height: Math.round(84 * (game ? game.textScale : 1))
+          width: Math.round(80 * (game ? game.textScale : 1))
+          height: Math.round(80 * (game ? game.textScale : 1))
           radius: 18
           color: numMouse.containsMouse ? (game ? game.colSurfaceAlt : "#363b54") : (game ? game.colSurface : "#2b2f42")
           border.width: 2
@@ -350,7 +342,7 @@ FocusScope {
             text: modelData
             color: game ? game.colText : "#edeffb"
             font.family: game ? game.fontFamily : "sans-serif"
-            font.pixelSize: Math.round(34 * (game ? game.textScale : 1))
+            font.pixelSize: Math.round(32 * (game ? game.textScale : 1))
             font.bold: true
           }
           MouseArea {
@@ -358,7 +350,7 @@ FocusScope {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: root.pick(modelData)
+            onClicked: root.startReveal(modelData)
           }
         }
       }
@@ -366,14 +358,14 @@ FocusScope {
 
     Mascot {
       anchors.horizontalCenter: parent.horizontalCenter
-      implicitWidth: 60
-      implicitHeight: 60
+      implicitWidth: 58
+      implicitHeight: 58
       reduceMotion: game ? game.reduceMotion : false
       bodyColor: root.phase === "done" && root.chosen !== root.total
                  ? (game ? game.colWrong : "#f4a6c0") : root.tint
       mood: {
         if (root.phase === "done") return root.chosen === root.total ? "happy" : "oops"
-        if (root.phase === "count") return "think"
+        if (root.phase === "reveal" || root.phase === "merge") return "think"
         return "idle"
       }
     }

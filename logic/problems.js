@@ -51,10 +51,9 @@ function digits(n) {
 function addOperands(level, rng) {
   var a, b, c, guard;
   switch (level) {
-    case 1: // sums to 5
-      a = randInt(rng, 0, 5);
-      b = randInt(rng, 0, 5 - a);
-      if (a + b === 0) b = 1;
+    case 1: // sums to 5, both parts at least 1
+      a = randInt(rng, 1, 4);
+      b = randInt(rng, 1, 5 - a);
       return [a, b];
     case 2: // sums to 10
       a = randInt(rng, 1, 9);
@@ -93,9 +92,10 @@ function addOperands(level, rng) {
 function subOperands(level, rng) {
   var a, b, c, guard;
   switch (level) {
-    case 1: a = randInt(rng, 1, 5);  b = randInt(rng, 0, a); return [a, b];
-    case 2: a = randInt(rng, 2, 10); b = randInt(rng, 0, a); return [a, b];
-    case 3: a = randInt(rng, 6, 20); b = randInt(rng, 0, a); return [a, b];
+    // take at least 1 away, leave at least 1 behind
+    case 1: a = randInt(rng, 2, 5);  b = randInt(rng, 1, a - 1); return [a, b];
+    case 2: a = randInt(rng, 3, 10); b = randInt(rng, 1, a - 1); return [a, b];
+    case 3: a = randInt(rng, 6, 20); b = randInt(rng, 1, a - 1); return [a, b];
     case 4: a = randInt(rng, 20, 99); b = randInt(rng, 2, 9); return [a, b];
     case 5: // 2-digit − 2-digit, no borrowing
       for (guard = 0; guard < 200; guard++) {

@@ -71,8 +71,9 @@ Window {
         case 16: game.openWorld("add"); game.startLevel(2); break
         case 17: grab("7-blocks-add-play"); break
         case 18: game.devBlockRound.pourGroup("A"); game.devBlockRound.pourGroup("B"); break
-        case 20: grab("8-blocks-count"); break
-        case 30: grab("9-blocks-confirm"); break
+        case 22: grab("8-blocks-closed"); break
+        case 24: game.devBlockRound.startReveal(game.devBlockRound.total); break
+        case 30: grab("9-blocks-reveal"); break
         case 31: game.screen = "home"; break
         case 32: game.openWorld("sub"); game.startLevel(3); break
         case 33: grab("10-blocks-sub-play"); break

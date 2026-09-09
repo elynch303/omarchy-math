@@ -15,14 +15,15 @@ Item {
   property int removed: 0
   signal allRemoved()
 
-  readonly property int cols: Math.min(5, Math.max(1, total))
-  readonly property real cell: 44
+  readonly property int cols: Math.max(1, Math.min(total <= 14 ? 5 : 7, total))
+  readonly property real cell: total <= 14 ? 44 : 38
+  readonly property real blockSize: cell - 6
 
   function slotX(slot) { return (slot % cols) * cell }
   function slotY(slot) { return Math.floor(slot / cols) * cell }
 
-  implicitWidth: cols * cell - (cell - 38)
-  implicitHeight: Math.ceil(total / cols) * cell
+  implicitWidth: Math.min(total, cols) * cell - (cell - blockSize)
+  implicitHeight: Math.ceil(total / cols) * cell - (cell - blockSize)
 
   function rebuild() {
     var a = []
@@ -53,8 +54,8 @@ Item {
       readonly property bool gone: slot === -1
       readonly property bool dragging: ma.drag.active
 
-      width: 38
-      height: 38
+      width: field.blockSize
+      height: field.blockSize
       visible: !gone
       z: dragging ? 10 : 1
       scale: gone ? 0.2 : 1

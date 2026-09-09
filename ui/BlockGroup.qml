@@ -1,8 +1,8 @@
 import QtQuick
 
-// A draggable cluster of blocks (addition). It rests at (restX, restY) — set by
-// the parent — and is held there by a Binding that releases only while dragging,
-// so it never fights the layout and never gets stuck after a drop that missed.
+// A draggable cluster of blocks (addition). Rests at (restX, restY) set by the
+// parent, held there by a Binding that releases while dragging. When `poured`
+// turns true it tumbles toward (sinkX, sinkY) — into the box — and fades.
 Item {
   id: grp
   property string groupId: ""
@@ -12,17 +12,29 @@ Item {
   property bool poured: false
   property real restX: 0
   property real restY: 0
+  property real sinkX: 0
+  property real sinkY: 0
   readonly property bool dragging: dragArea.drag.active
 
   width: grid.implicitWidth + 18
   height: grid.implicitHeight + 18
-  visible: !poured
+  opacity: 1
+  visible: opacity > 0.01
   z: dragging ? 10 : 1
 
-  Binding on x { when: !grp.dragging; value: grp.restX; restoreMode: Binding.RestoreBinding }
-  Binding on y { when: !grp.dragging; value: grp.restY; restoreMode: Binding.RestoreBinding }
-  Behavior on x { enabled: !grp.reduceMotion && !grp.dragging; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-  Behavior on y { enabled: !grp.reduceMotion && !grp.dragging; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+  Binding on x { when: !grp.dragging && !grp.poured; value: grp.restX; restoreMode: Binding.RestoreBinding }
+  Binding on y { when: !grp.dragging && !grp.poured; value: grp.restY; restoreMode: Binding.RestoreBinding }
+  Behavior on x { enabled: !grp.reduceMotion && !grp.dragging && !grp.poured; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+  Behavior on y { enabled: !grp.reduceMotion && !grp.dragging && !grp.poured; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+
+  onPouredChanged: if (poured) sinkAnim.start()
+  ParallelAnimation {
+    id: sinkAnim
+    NumberAnimation { target: grp; property: "x"; to: grp.sinkX; duration: grp.reduceMotion ? 0 : 360; easing.type: Easing.InCubic }
+    NumberAnimation { target: grp; property: "y"; to: grp.sinkY; duration: grp.reduceMotion ? 0 : 360; easing.type: Easing.InCubic }
+    NumberAnimation { target: grp; property: "scale"; to: 0.2; duration: grp.reduceMotion ? 0 : 360 }
+    NumberAnimation { target: grp; property: "opacity"; to: 0; duration: grp.reduceMotion ? 0 : 360 }
+  }
 
   Rectangle {
     anchors.fill: parent
@@ -35,7 +47,7 @@ Item {
   Grid {
     id: grid
     anchors.centerIn: parent
-    columns: Math.min(4, Math.max(1, grp.count))
+    columns: Math.min(5, Math.max(1, grp.count))
     spacing: 5
     Repeater {
       model: grp.count
@@ -51,12 +63,11 @@ Item {
   MouseArea {
     id: dragArea
     anchors.fill: parent
+    enabled: !grp.poured
     cursorShape: grp.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
     drag.target: grp
     onReleased: {
       if (grp.Drag.target) grp.Drag.drop()
-      // If the drop wasn't accepted, `poured` is still false and the x/y
-      // Bindings snap the group home on their own.
     }
   }
 }
