@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.elynch303.kids-math",
   "name": "Kids Math",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "author": "elynch303",
   "license": "MIT",
   "description": "A fun math game for kids 5-12 - add, subtract, multiply, divide with levels and stars.",
