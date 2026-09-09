@@ -15,7 +15,8 @@ Window {
   Game {
     id: game
     anchors.fill: parent
-    reduceMotion: true
+    reduceMotionPref: true
+    devSkipGate: true
     progress: ({
       version: 1,
       settings: { sound: true, reduceMotion: true, largeText: false },
@@ -60,7 +61,9 @@ Window {
         case 8: game.screen = "home"; break
         case 9: game.openWorld("div"); game.startLevel(6); break
         case 10: grab("5-round-div"); break
-        case 11: Qt.quit(); break
+        case 11: game.screen = "grownups"; break
+        case 12: grab("6-grownups"); break
+        case 13: Qt.quit(); break
       }
     }
   }

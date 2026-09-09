@@ -5,6 +5,7 @@ FocusScope {
   id: root
   property var game
   signal openWorld(string world)
+  signal grownUps()
   signal close()
 
   focus: visible
@@ -173,6 +174,23 @@ FocusScope {
             }
           }
         }
+      }
+    }
+
+    Text {
+      anchors.horizontalCenter: parent.horizontalCenter
+      text: "For grown-ups"
+      color: game ? game.colMuted : "#9aa2c8"
+      opacity: guMouse.containsMouse ? 1 : 0.6
+      font.family: game ? game.fontFamily : "sans-serif"
+      font.pixelSize: Math.round(14 * (game ? game.textScale : 1))
+      MouseArea {
+        id: guMouse
+        anchors.fill: parent
+        anchors.margins: -10
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.grownUps()
       }
     }
   }

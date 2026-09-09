@@ -19,8 +19,9 @@ FocusScope {
   function choose(value) {
     if (root.phase !== "asking" || !root.q) return
     root.chosen = value
-    root.game.submit(value)
+    var right = root.game.submit(value)
     root.phase = "revealed"
+    if (right) confetti.burst()
     advanceTimer.restart()
   }
 
@@ -81,14 +82,30 @@ FocusScope {
         }
       }
 
-      Text {
+      Row {
         anchors.centerIn: parent
-        visible: game && game.streak >= 2
-        text: "🔥 " + (game ? game.streak : 0)
-        color: game ? game.colStar : "#ffce54"
-        font.family: game ? game.fontFamily : "sans-serif"
-        font.pixelSize: Math.round(18 * (game ? game.textScale : 1))
-        font.bold: true
+        spacing: 8
+        opacity: game && game.streak >= 2 ? 1 : 0
+        Behavior on opacity { enabled: !(game && game.reduceMotion); NumberAnimation { duration: 160 } }
+        Text {
+          anchors.verticalCenter: parent.verticalCenter
+          text: "🔥 " + (game ? game.streak : 0)
+          color: game ? game.colStar : "#ffce54"
+          font.family: game ? game.fontFamily : "sans-serif"
+          font.pixelSize: Math.round(17 * (game ? game.textScale : 1))
+          font.bold: true
+        }
+        Rectangle {
+          anchors.verticalCenter: parent.verticalCenter
+          width: 54; height: 6; radius: 3
+          color: Qt.rgba(1, 1, 1, 0.1)
+          Rectangle {
+            height: parent.height; radius: parent.radius
+            width: parent.width * Math.min(1, (game ? game.streak : 0) / (game ? game.questions.length : 10))
+            color: game ? game.colStar : "#ffce54"
+            Behavior on width { enabled: !(game && game.reduceMotion); NumberAnimation { duration: 200 } }
+          }
+        }
       }
 
       Rectangle {
@@ -218,6 +235,15 @@ FocusScope {
     enabled: root.phase === "revealed"
     onClicked: root.proceed()
     z: -1
+  }
+
+  Confetti {
+    id: confetti
+    anchors.fill: parent
+    z: 10
+    reduceMotion: game ? game.reduceMotion : false
+    colors: game ? [game.colCorrect, game.colAccent, game.colStar, game.colWrong, "#c98adf"]
+                 : ["#63d0a0", "#7aa2f7", "#ffce54", "#f4a6c0", "#c98adf"]
   }
 
   function pickPraise() {

@@ -87,8 +87,9 @@ Item {
       colSurface: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.06)
       colSurfaceAlt: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.12)
       fontFamily: Style.font.family
-      textScale: (game.progress && game.progress.settings && game.progress.settings.largeText) ? 1.18 : 1.0
-      reduceMotion: (game.progress && game.progress.settings && game.progress.settings.reduceMotion) === true
+      // Desktop-level preferences; the in-game grown-ups screen adds to these.
+      baseTextScale: 1.0
+      reduceMotionPref: false
 
       onPersist: function (nextProgress) {
         if (root.stateReady) progressFile.setText(Store.serialize(nextProgress))

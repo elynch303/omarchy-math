@@ -22,8 +22,13 @@ Item {
   property color colWrong: "#f4a6c0"
   property color colStar: "#ffce54"
   property string fontFamily: "sans-serif"
-  property real textScale: 1.0
-  property bool reduceMotion: false
+
+  // Desktop wrapper sets the *Pref properties; the in-game grown-ups settings
+  // can also switch them on. Effective value = either source.
+  property bool reduceMotionPref: false
+  property real baseTextScale: 1.0
+  readonly property bool reduceMotion: reduceMotionPref || settings.reduceMotion === true
+  readonly property real textScale: baseTextScale * (settings.largeText === true ? 1.18 : 1.0)
 
   // World accent colours — always bright regardless of desktop theme.
   readonly property var worldColor: ({
@@ -35,8 +40,24 @@ Item {
   signal persist(var nextProgress)     // "please write this to disk"
   signal requestClose()
 
+  readonly property var settings: (progress && progress.settings) || ({})
+  readonly property bool soundOn: settings.sound !== false
+
+  function setSetting(key, value) {
+    var updated = Store.setSetting(game.progress, key, value)
+    game.progress = updated
+    game.persist(updated)
+  }
+
+  function resetProgress() {
+    var fresh = Store.emptyProgress()
+    game.progress = fresh
+    game.persist(fresh)
+    game.screen = "home"
+  }
+
   // ---- navigation / round state --------------------------------------
-  property string screen: "home"       // home | levels | round | result
+  property string screen: "home"       // home | levels | round | result | grownups
   property string world: "add"
   property int level: 1
   property var questions: []
@@ -102,6 +123,9 @@ Item {
 
   Rectangle { anchors.fill: parent; color: game.colBg }
 
+  // Dev/harness only: set true to skip the grown-ups hold-gate in screenshots.
+  property bool devSkipGate: false
+
   HomeScreen {
     id: homeScreen
     anchors.fill: parent
@@ -109,7 +133,18 @@ Item {
     enabled: visible
     game: game
     onOpenWorld: function (w) { game.openWorld(w) }
+    onGrownUps: game.screen = "grownups"
     onClose: game.requestClose()
+  }
+
+  GrownUps {
+    id: grownUpsScreen
+    anchors.fill: parent
+    visible: game.screen === "grownups"
+    enabled: visible
+    game: game
+    autoEnter: game.devSkipGate
+    onDone: game.screen = "home"
   }
 
   LevelSelect {
