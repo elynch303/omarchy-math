@@ -1,37 +1,41 @@
 import QtQuick
 
-// A draggable cluster of blocks (used for addition). Drops onto a DropArea;
-// if not dropped on a target it springs back to home.
+// A draggable cluster of blocks (addition). It rests at (restX, restY) — set by
+// the parent — and is held there by a Binding that releases only while dragging,
+// so it never fights the layout and never gets stuck after a drop that missed.
 Item {
   id: grp
   property string groupId: ""
   property int count: 1
   property color tint: "#5bc98c"
   property bool reduceMotion: false
-  property real homeX: 0
-  property real homeY: 0
   property bool poured: false
+  property real restX: 0
+  property real restY: 0
+  readonly property bool dragging: dragArea.drag.active
 
-  width: grid.width + 16
-  height: grid.height + 16
+  width: grid.implicitWidth + 18
+  height: grid.implicitHeight + 18
   visible: !poured
-  opacity: dragArea.drag.active ? 0.9 : 1
+  z: dragging ? 10 : 1
 
-  Behavior on x { enabled: !grp.reduceMotion && !dragArea.drag.active; NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
-  Behavior on y { enabled: !grp.reduceMotion && !dragArea.drag.active; NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
+  Binding on x { when: !grp.dragging; value: grp.restX; restoreMode: Binding.RestoreBinding }
+  Binding on y { when: !grp.dragging; value: grp.restY; restoreMode: Binding.RestoreBinding }
+  Behavior on x { enabled: !grp.reduceMotion && !grp.dragging; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+  Behavior on y { enabled: !grp.reduceMotion && !grp.dragging; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
   Rectangle {
     anchors.fill: parent
     radius: 14
-    color: dragArea.drag.active ? Qt.rgba(grp.tint.r, grp.tint.g, grp.tint.b, 0.16) : "transparent"
-    border.width: dragArea.drag.active ? 2 : 0
-    border.color: grp.tint
+    color: grp.dragging ? Qt.rgba(grp.tint.r, grp.tint.g, grp.tint.b, 0.18) : Qt.rgba(1, 1, 1, 0.04)
+    border.width: 2
+    border.color: grp.dragging ? grp.tint : Qt.rgba(1, 1, 1, 0.10)
   }
 
   Grid {
     id: grid
     anchors.centerIn: parent
-    columns: Math.min(4, grp.count)
+    columns: Math.min(4, Math.max(1, grp.count))
     spacing: 5
     Repeater {
       model: grp.count
@@ -47,15 +51,12 @@ Item {
   MouseArea {
     id: dragArea
     anchors.fill: parent
-    cursorShape: Qt.OpenHandCursor
+    cursorShape: grp.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
     drag.target: grp
     onReleased: {
-      if (grp.Drag.target) {
-        grp.Drag.drop()
-      } else {
-        grp.x = grp.homeX
-        grp.y = grp.homeY
-      }
+      if (grp.Drag.target) grp.Drag.drop()
+      // If the drop wasn't accepted, `poured` is still false and the x/y
+      // Bindings snap the group home on their own.
     }
   }
 }

@@ -42,19 +42,15 @@ FocusScope {
   function reset() {
     phase = "play"; countShown = 0; chosen = -1
     pouredA = false; pouredB = false; removed = 0
+    if (typeof subField !== "undefined" && subField) subField.rebuild()
   }
 
-  // called by the drop handlers (and by dev/shoot.qml)
+  // called by the basket drop handler (and by dev/shoot.qml)
   function pourGroup(which) {
     if (phase !== "play") return
     if (which === "A") pouredA = true
     else if (which === "B") pouredB = true
     if (basketCount === total) startCount()
-  }
-  function sendToBin() {
-    if (phase !== "play" || removed >= b) return
-    removed += 1
-    if (removed === b) startCount()
   }
 
   function startCount() {
@@ -212,33 +208,53 @@ FocusScope {
 
       // ===== ADDITION: two draggable groups + a basket =====
       Item {
+        id: addArea
         anchors.fill: parent
         visible: root.isAdd && root.phase === "play"
 
+        function place() {
+          if (width <= 0) return
+          if (!groupA.dragging) { groupA.restX = Math.round(width * 0.04); groupA.restY = 6 }
+          if (!groupB.dragging) { groupB.restX = Math.round(width * 0.96 - groupB.width); groupB.restY = 6 }
+        }
+        onWidthChanged: place()
+        onVisibleChanged: if (visible) place()
+        Component.onCompleted: place()
+        Connections { target: groupB; function onWidthChanged() { addArea.place() } }
+
         DropArea {
           id: basket
-          width: parent.width * 0.66
-          height: 104
+          width: Math.min(parent.width * 0.72, 420)
+          height: 106
           anchors.horizontalCenter: parent.horizontalCenter
-          y: parent.height - height - 4
+          y: parent.height - height - 2
+          keys: ["A", "B"]
           onDropped: function (drop) {
             root.pourGroup(drop.keys.length > 0 ? drop.keys[0] : "")
             drop.accept()
           }
-          keys: ["A", "B"]
           Rectangle {
             anchors.fill: parent
-            radius: 16
-            color: basket.containsDrag ? Qt.rgba(root.tint.r, root.tint.g, root.tint.b, 0.18) : Qt.rgba(1, 1, 1, 0.05)
+            radius: 18
+            color: basket.containsDrag ? Qt.rgba(root.tint.r, root.tint.g, root.tint.b, 0.2) : Qt.rgba(1, 1, 1, 0.05)
             border.width: 2
-            border.color: basket.containsDrag ? root.tint : Qt.rgba(1, 1, 1, 0.12)
+            border.color: basket.containsDrag ? root.tint : Qt.rgba(1, 1, 1, 0.14)
             Text {
               anchors.centerIn: parent
-              text: "drop here"
+              text: root.basketCount > 0 ? "" : "drop the blocks here"
               color: game ? game.colMuted : "#9aa2c8"
               opacity: 0.7
               font.family: game ? game.fontFamily : "sans-serif"
-              font.pixelSize: 14
+              font.pixelSize: 15
+            }
+            Grid {
+              anchors.centerIn: parent
+              columns: Math.min(10, Math.max(1, root.basketCount))
+              spacing: 4
+              Repeater {
+                model: root.basketCount
+                delegate: Block { tint: root.tint; reduceMotion: game ? game.reduceMotion : false; width: 26; height: 26 }
+              }
             }
           }
         }
@@ -250,9 +266,6 @@ FocusScope {
           tint: root.tint
           poured: root.pouredA
           reduceMotion: game ? game.reduceMotion : false
-          x: parent.width * 0.06
-          y: 8
-          homeX: x; homeY: y
         }
         BlockGroup {
           id: groupB
@@ -261,31 +274,25 @@ FocusScope {
           tint: root.tint
           poured: root.pouredB
           reduceMotion: game ? game.reduceMotion : false
-          x: parent.width * 0.9 - width
-          y: 8
-          homeX: x; homeY: y
         }
       }
 
-      // ===== SUBTRACTION: a tray of blocks + a bin =====
+      // ===== SUBTRACTION: a field of blocks + a bin =====
       Item {
         anchors.fill: parent
         visible: !root.isAdd && root.phase === "play"
 
         DropArea {
           id: bin
-          width: 130
+          width: 128
           height: 150
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
-          onDropped: function (drop) {
-            if (root.removed < root.b) { root.sendToBin(); drop.accept() }
-          }
           Rectangle {
             anchors.fill: parent
             radius: 16
             color: bin.containsDrag && root.removed < root.b
-                   ? Qt.rgba(0.95, 0.5, 0.55, 0.2) : Qt.rgba(1, 1, 1, 0.05)
+                   ? Qt.rgba(0.95, 0.5, 0.55, 0.22) : Qt.rgba(1, 1, 1, 0.05)
             border.width: 2
             border.color: Qt.rgba(0.95, 0.55, 0.6, 0.5)
             Column {
@@ -304,25 +311,18 @@ FocusScope {
           }
         }
 
-        Grid {
-          id: subTray
+        SubBlockField {
+          id: subField
           anchors.left: parent.left
+          anchors.leftMargin: 8
           anchors.verticalCenter: parent.verticalCenter
-          anchors.leftMargin: parent.width * 0.04
-          width: parent.width * 0.6
-          columns: Math.min(5, root.a)
-          spacing: 8
-          Repeater {
-            model: root.a
-            delegate: DraggableBlock {
-              required property int index
-              tint: root.tint
-              reduceMotion: game ? game.reduceMotion : false
-              gone: index >= (root.a - root.removed)   // last `removed` blocks vanish
-              targetArea: bin
-              onDroppedOnTarget: root.sendToBin()
-            }
-          }
+          total: root.a
+          toRemove: root.b
+          tint: root.tint
+          reduceMotion: game ? game.reduceMotion : false
+          binArea: bin
+          onRemovedChanged: root.removed = removed
+          onAllRemoved: root.startCount()
         }
       }
     }
