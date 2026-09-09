@@ -69,6 +69,9 @@ Item {
 
   readonly property var meta: Progression.WORLD_META[world]
 
+  // The intro levels use the hands-on block round instead of the quiz.
+  readonly property bool blockMode: (world === "add" || world === "sub") && level <= 3
+
   function openWorld(w) {
     game.world = w
     game.level = Progression.suggestedLevel(game.progress, w)
@@ -160,11 +163,22 @@ Item {
   RoundScreen {
     id: roundScreen
     anchors.fill: parent
-    visible: game.screen === "round"
+    visible: game.screen === "round" && !game.blockMode
     enabled: visible
     game: game
     onQuit: game.screen = "levels"
   }
+
+  BlockRound {
+    id: blockRound
+    anchors.fill: parent
+    visible: game.screen === "round" && game.blockMode
+    enabled: visible
+    game: game
+    onQuit: game.screen = "levels"
+  }
+  // dev/harness reaches the block round through this to script drag steps
+  property alias devBlockRound: blockRound
 
   ResultScreen {
     id: resultScreen

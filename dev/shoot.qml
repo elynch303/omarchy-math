@@ -66,7 +66,17 @@ Window {
         case 12: grab("5-round-div"); break
         case 13: game.screen = "grownups"; break
         case 14: grab("6-grownups"); break
-        case 15: Qt.quit(); break
+        // block round (addition, intro level)
+        case 15: game.screen = "home"; break
+        case 16: game.openWorld("add"); game.startLevel(2); break
+        case 17: grab("7-blocks-add-play"); break
+        case 18: game.devBlockRound.pourGroup("A"); game.devBlockRound.pourGroup("B"); break
+        case 20: grab("8-blocks-count"); break
+        case 30: grab("9-blocks-confirm"); break
+        case 31: game.screen = "home"; break
+        case 32: game.openWorld("sub"); game.startLevel(3); break
+        case 33: grab("10-blocks-sub-play"); break
+        case 34: Qt.quit(); break
       }
     }
   }
