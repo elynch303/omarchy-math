@@ -28,6 +28,16 @@ FocusScope {
     width: Math.min(parent.width - 64, 520)
     spacing: Math.round(22 * (game ? game.textScale : 1))
 
+    Mascot {
+      anchors.horizontalCenter: parent.horizontalCenter
+      implicitWidth: Math.round(88 * (game ? game.textScale : 1))
+      implicitHeight: Math.round(88 * (game ? game.textScale : 1))
+      reduceMotion: game ? game.reduceMotion : false
+      mood: root.stars >= 2 ? "happy" : (root.stars === 1 ? "idle" : "think")
+      bodyColor: root.stars >= 1 ? (game ? game.colCorrect : "#63d0a0")
+                                 : (game ? game.colAccent : "#7aa2f7")
+    }
+
     Text {
       width: parent.width
       horizontalAlignment: Text.AlignHCenter

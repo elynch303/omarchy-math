@@ -36,7 +36,7 @@ Item {
   signal requestClose()
 
   // ---- navigation / round state --------------------------------------
-  property string screen: "levels"     // levels | round | result
+  property string screen: "home"       // home | levels | round | result
   property string world: "add"
   property int level: 1
   property var questions: []
@@ -102,6 +102,16 @@ Item {
 
   Rectangle { anchors.fill: parent; color: game.colBg }
 
+  HomeScreen {
+    id: homeScreen
+    anchors.fill: parent
+    visible: game.screen === "home"
+    enabled: visible
+    game: game
+    onOpenWorld: function (w) { game.openWorld(w) }
+    onClose: game.requestClose()
+  }
+
   LevelSelect {
     id: levelScreen
     anchors.fill: parent
@@ -109,7 +119,7 @@ Item {
     enabled: visible
     game: game
     onPlay: function (lv) { game.startLevel(lv) }
-    onClose: game.requestClose()
+    onClose: game.screen = "home"
   }
 
   RoundScreen {

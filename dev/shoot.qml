@@ -2,7 +2,7 @@ import QtQuick
 import ".."
 
 // Headless screenshot driver. Run offscreen:
-//   QT_QPA_PLATFORM=offscreen qml dev/shoot.qml
+//   QT_QPA_PLATFORM=offscreen /usr/bin/qml6 dev/shoot.qml
 // Writes /tmp/km-*.png for each screen without touching the live desktop.
 Window {
   id: win
@@ -19,10 +19,14 @@ Window {
     progress: ({
       version: 1,
       settings: { sound: true, reduceMotion: true, largeText: false },
-      worlds: { add: { levels: {
-        "1": { bestStars: 3, bestScore: 10, plays: 3 },
-        "2": { bestStars: 2, bestScore: 9, plays: 1 }
-      } } }
+      worlds: {
+        add: { levels: { "1": { bestStars: 3, bestScore: 10, plays: 4 },
+                         "2": { bestStars: 3, bestScore: 10, plays: 2 },
+                         "3": { bestStars: 2, bestScore: 9, plays: 1 } } },
+        mul: { levels: { "1": { bestStars: 3, bestScore: 10, plays: 2 },
+                         "2": { bestStars: 1, bestScore: 7, plays: 3 } } },
+        sub: { levels: { "1": { bestStars: 2, bestScore: 8, plays: 1 } } }
+      }
     })
     onPersist: function (n) {}
   }
@@ -36,22 +40,27 @@ Window {
   }
 
   Timer {
-    interval: 400
+    interval: 350
     repeat: true
     running: true
     onTriggered: {
       win.step += 1
       switch (win.step) {
-        case 1: grab("1-levels"); break
-        case 2: game.startLevel(3); break
-        case 3: grab("2-round"); break
-        case 4:
-          game.correctCount = 8
-          game.bestStreak = 6
+        case 1: grab("1-home"); break
+        case 2: game.openWorld("mul"); break
+        case 3: grab("2-levels"); break
+        case 4: game.startLevel(5); break
+        case 5: grab("3-round"); break
+        case 6:
+          game.correctCount = 10
+          game.bestStreak = 10
           game.finish()
           break
-        case 5: grab("3-result"); break
-        case 6: Qt.quit(); break
+        case 7: grab("4-result"); break
+        case 8: game.screen = "home"; break
+        case 9: game.openWorld("div"); game.startLevel(6); break
+        case 10: grab("5-round-div"); break
+        case 11: Qt.quit(); break
       }
     }
   }

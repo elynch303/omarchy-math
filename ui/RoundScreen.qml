@@ -107,6 +107,23 @@ FocusScope {
       }
     }
 
+    Mascot {
+      anchors.horizontalCenter: parent.horizontalCenter
+      implicitWidth: Math.round(66 * (game ? game.textScale : 1))
+      implicitHeight: Math.round(66 * (game ? game.textScale : 1))
+      reduceMotion: game ? game.reduceMotion : false
+      bodyColor: {
+        if (root.phase === "asking") return game ? game.colAccent : "#7aa2f7"
+        return (root.q && root.chosen === root.q.answer)
+               ? (game ? game.colCorrect : "#63d0a0")
+               : (game ? game.colWrong : "#f4a6c0")
+      }
+      mood: {
+        if (root.phase === "asking") return "idle"
+        return (root.q && root.chosen === root.q.answer) ? "happy" : "oops"
+      }
+    }
+
     // ---- the question ----------------------------------------------
     Rectangle {
       width: parent.width

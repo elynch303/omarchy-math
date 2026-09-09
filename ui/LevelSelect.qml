@@ -61,9 +61,9 @@ FocusScope {
         color: closeMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.06)
         Text {
           anchors.centerIn: parent
-          text: "✕"
+          text: "←"
           color: game ? game.colMuted : "#9aa2c8"
-          font.pixelSize: 18
+          font.pixelSize: 20
         }
         MouseArea {
           id: closeMouse

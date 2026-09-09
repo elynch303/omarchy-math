@@ -25,6 +25,14 @@ function pick(rng, arr) {
   return arr[Math.floor(rng() * arr.length)];
 }
 
+function coin(rng) {
+  return rng() < 0.5;
+}
+
+function orderPair(rng, a, b) {
+  return coin(rng) ? [a, b] : [b, a];
+}
+
 function shuffle(rng, arr) {
   var a = arr.slice();
   for (var i = a.length - 1; i > 0; i--) {
@@ -82,8 +90,88 @@ function addOperands(level, rng) {
   }
 }
 
+function subOperands(level, rng) {
+  var a, b, c, guard;
+  switch (level) {
+    case 1: a = randInt(rng, 1, 5);  b = randInt(rng, 0, a); return [a, b];
+    case 2: a = randInt(rng, 2, 10); b = randInt(rng, 0, a); return [a, b];
+    case 3: a = randInt(rng, 6, 20); b = randInt(rng, 0, a); return [a, b];
+    case 4: a = randInt(rng, 20, 99); b = randInt(rng, 2, 9); return [a, b];
+    case 5: // 2-digit − 2-digit, no borrowing
+      for (guard = 0; guard < 200; guard++) {
+        a = randInt(rng, 23, 98);
+        b = randInt(rng, 11, a - 1);
+        if (digits(a).ones >= digits(b).ones && digits(a).tens >= digits(b).tens) return [a, b];
+      }
+      return [58, 23];
+    case 6: // 2-digit − 2-digit, with borrowing
+      for (guard = 0; guard < 200; guard++) {
+        a = randInt(rng, 22, 98);
+        b = randInt(rng, 11, a - 1);
+        if (digits(b).ones > digits(a).ones && digits(a).tens > digits(b).tens) return [a, b];
+      }
+      return [52, 27];
+    case 7: // a − b − c, never below zero
+      a = randInt(rng, 12, 20);
+      b = randInt(rng, 1, Math.floor(a / 2));
+      c = randInt(rng, 1, a - b);
+      return [a, b, c];
+    default:
+      a = randInt(rng, 1, 9); return [a, randInt(rng, 0, a)];
+  }
+}
+
+function mulOperands(level, rng) {
+  switch (level) {
+    case 1: return orderPair(rng, pick(rng, [1, 2]), randInt(rng, 1, 10));
+    case 2: return orderPair(rng, pick(rng, [2, 5, 10]), randInt(rng, 1, 10));
+    case 3: return orderPair(rng, pick(rng, [3, 4]), randInt(rng, 1, 10));
+    case 4: return orderPair(rng, pick(rng, [6, 7, 8, 9]), randInt(rng, 2, 10));
+    case 5: return [randInt(rng, 2, 12), randInt(rng, 2, 12)];
+    case 6: return [randInt(rng, 11, 25), randInt(rng, 2, 9)];
+    case 7: return [randInt(rng, 2, 5), randInt(rng, 2, 5), randInt(rng, 2, 5)];
+    default: return [randInt(rng, 1, 9), randInt(rng, 1, 9)];
+  }
+}
+
+// Division is always built quotient × divisor so the answer is a whole number.
+function divOperands(level, rng) {
+  var d, q;
+  switch (level) {
+    case 1: d = pick(rng, [1, 2]); q = randInt(rng, 1, 10); return [d * q, d];
+    case 2: d = pick(rng, [2, 5, 10]); q = randInt(rng, 1, 10); return [d * q, d];
+    case 3: d = pick(rng, [3, 4]); q = randInt(rng, 1, 10); return [d * q, d];
+    case 4: d = pick(rng, [6, 7, 8, 9]); q = randInt(rng, 2, 10); return [d * q, d];
+    case 5: d = randInt(rng, 2, 12); q = randInt(rng, 2, 12); return [d * q, d];
+    case 6: // 2-digit ÷ 1-digit
+      d = randInt(rng, 2, 9);
+      q = randInt(rng, Math.ceil(10 / d), Math.floor(99 / d));
+      return [d * q, d];
+    case 7: // 3-digit ÷ 1-digit
+      d = randInt(rng, 3, 9);
+      q = randInt(rng, Math.ceil(100 / d), Math.floor(499 / d));
+      return [d * q, d];
+    default: d = randInt(rng, 1, 9); q = randInt(rng, 1, 9); return [d * q, d];
+  }
+}
+
 var WORLDS = {
-  add: { op: "+", symbol: "+", operands: addOperands, apply: function (xs) { return xs.reduce(function (s, x) { return s + x; }, 0); } }
+  add: {
+    op: "+", symbol: "+", operands: addOperands,
+    apply: function (xs) { return xs.reduce(function (s, x) { return s + x; }, 0); }
+  },
+  sub: {
+    op: "-", symbol: "−", operands: subOperands,
+    apply: function (xs) { return xs.reduce(function (a, x, i) { return i ? a - x : x; }); }
+  },
+  mul: {
+    op: "*", symbol: "×", operands: mulOperands,
+    apply: function (xs) { return xs.reduce(function (p, x) { return p * x; }, 1); }
+  },
+  div: {
+    op: "/", symbol: "÷", operands: divOperands,
+    apply: function (xs) { return xs.reduce(function (a, x, i) { return i ? a / x : x; }); }
+  }
 };
 
 // ---- distractors ----------------------------------------------------------
@@ -93,9 +181,12 @@ function buildChoices(answer, operands, world, rng) {
     answer + 1, answer - 1, answer + 2, answer - 2,
     answer + 10, answer - 10
   ];
-  // "wrong operation" trap: what you'd get subtracting instead of adding.
-  if (world === "add" && operands.length === 2) {
-    candidates.push(Math.abs(operands[0] - operands[1]));
+  // "wrong operation" trap: the number you'd get running the other operation.
+  if (operands.length === 2) {
+    if (world === "add") candidates.push(Math.abs(operands[0] - operands[1]));
+    else if (world === "sub") candidates.push(operands[0] + operands[1]);
+    else if (world === "mul") candidates.push(operands[0] + operands[1]);
+    else if (world === "div") candidates.push(operands[0] - operands[1]);
   }
   // transposed digits of the answer (a classic slip)
   if (answer >= 10 && answer <= 98) {

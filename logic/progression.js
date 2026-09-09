@@ -13,7 +13,13 @@ var WORLD_META = {
 // Short kid-facing description of what a level drills. Index 0 == level 1.
 var LEVEL_BLURBS = {
   add: ["Sums to 5", "Sums to 10", "Sums to 20", "Big + small",
-        "Two-digit sums", "Carrying over", "Three numbers"]
+        "Two-digit sums", "Carrying over", "Three numbers"],
+  sub: ["Take away to 5", "Take away to 10", "Take away to 20", "Big − small",
+        "Two-digit", "Borrowing", "Three numbers"],
+  mul: ["1s and 2s", "2s, 5s, 10s", "3s and 4s", "6s to 9s",
+        "Times tables", "Bigger × small", "Three numbers"],
+  div: ["Share by 2", "By 2, 5, 10", "By 3 and 4", "By 6 to 9",
+        "Division facts", "Two-digit ÷", "Bigger numbers"]
 };
 
 var ROUND_SIZE = 10;
