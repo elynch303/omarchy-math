@@ -55,9 +55,9 @@ function addOperands(level, rng) {
       a = randInt(rng, 1, 4);
       b = randInt(rng, 1, 5 - a);
       return [a, b];
-    case 2: // sums to 10
-      a = randInt(rng, 1, 9);
-      b = randInt(rng, 1, 10 - a);
+    case 2: // sums to 10, kept fairly even so the balance pans stay small
+      a = randInt(rng, 2, 6);
+      b = randInt(rng, 2, 10 - a);
       return [a, b];
     case 3: // sums to 20
       a = randInt(rng, 1, 19);
@@ -93,8 +93,8 @@ function subOperands(level, rng) {
   var a, b, c, guard;
   switch (level) {
     // take at least 1 away, leave at least 1 behind
-    case 1: a = randInt(rng, 2, 5);  b = randInt(rng, 1, a - 1); return [a, b];
-    case 2: a = randInt(rng, 3, 10); b = randInt(rng, 1, a - 1); return [a, b];
+    case 1: a = randInt(rng, 2, 5); b = randInt(rng, 1, a - 1); return [a, b];
+    case 2: a = randInt(rng, 4, 9); b = randInt(rng, 1, Math.min(a - 1, 6)); return [a, b];
     case 3: a = randInt(rng, 6, 20); b = randInt(rng, 1, a - 1); return [a, b];
     case 4: a = randInt(rng, 20, 99); b = randInt(rng, 2, 9); return [a, b];
     case 5: // 2-digit − 2-digit, no borrowing

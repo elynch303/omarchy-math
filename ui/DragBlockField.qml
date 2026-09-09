@@ -45,6 +45,24 @@ Item {
     if (taken === takeCount) allTaken()
   }
 
+  // keyboard / programmatic helpers
+  function takeLast() {
+    if (present.length > 0) take(present[present.length - 1])
+  }
+  function giveBack() {
+    if (taken <= 0) return
+    for (var i = 0; i < total; i++) {
+      if (present.indexOf(i) === -1) {
+        var a = present.slice()
+        a.push(i)
+        a.sort(function (x, y) { return x - y })
+        present = a
+        taken = total - a.length
+        return
+      }
+    }
+  }
+
   Component.onCompleted: rebuild()
   onTotalChanged: rebuild()
 

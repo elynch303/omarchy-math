@@ -66,22 +66,18 @@ Window {
         case 12: grab("5-round-div"); break
         case 13: game.screen = "grownups"; break
         case 14: grab("6-grownups"); break
-        // block round (addition, intro level)
+        // balance round (addition, intro level)
         case 15: game.screen = "home"; break
         case 16: game.openWorld("add"); game.startLevel(2); break
-        case 17: grab("7-blocks-add-play"); break
-        case 18: {
-          var br = game.devBlockRound
-          for (var i = 0; i < 40 && br.phase === "play"; i++) br.keyStep()
-          break
-        }
-        case 22: grab("8-blocks-closed"); break
-        case 24: game.devBlockRound.startReveal(game.devBlockRound.total); break
-        case 30: grab("9-blocks-reveal"); break
-        case 31: game.screen = "home"; break
-        case 32: game.openWorld("sub"); game.startLevel(2); break
-        case 33: grab("10-blocks-sub-play"); break
-        case 34: Qt.quit(); break
+        case 17: grab("7-balance-add-start"); break
+        case 18: game.devBlockRound.devTakeOne(); game.devBlockRound.devTakeOne(); break
+        case 19: grab("8-balance-tilting"); break
+        case 20: game.devBlockRound.devBalance(); break
+        case 22: grab("9-balance-balanced"); break
+        case 23: game.screen = "home"; break
+        case 24: game.openWorld("sub"); game.startLevel(2); break
+        case 25: grab("10-balance-sub-start"); break
+        case 26: Qt.quit(); break
       }
     }
   }

@@ -171,7 +171,7 @@ Item {
     onQuit: game.screen = "levels"
   }
 
-  BlockRound {
+  BalanceRound {
     id: blockRound
     anchors.fill: parent
     visible: game.screen === "round" && game.blockMode
@@ -179,7 +179,7 @@ Item {
     game: game
     onQuit: game.screen = "levels"
   }
-  // dev/harness reaches the block round through this to script drag steps
+  // dev/harness reaches the balance round through this to script steps
   property alias devBlockRound: blockRound
 
   ResultScreen {
