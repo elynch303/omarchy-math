@@ -1,10 +1,9 @@
 import QtQuick
 
-// One pan of the balance scale. Hangs from a beam end; `counterRotation` keeps
-// it upright while the beam tilts.
+// One pan of the balance scale, hanging BELOW the beam on strings so nothing
+// overlaps the bar. `counterRotation` keeps it upright as the beam tilts.
 //   - set `cardLabel` to show a number card (the "known" side)
-//   - or set `pieces` (a list of block values) to show place-value blocks the
-//     kid can tap to take back off
+//   - or set `pieces` (a list of block values) for the build side
 Item {
   id: pan
   property color tint: "#5bc98c"
@@ -22,17 +21,19 @@ Item {
   readonly property bool isCard: cardLabel.length > 0
 
   width: 210
-  height: 150
+  height: 130
   rotation: counterRotation
   transformOrigin: Item.Top
 
-  // hanger
-  Rectangle { x: pan.width * 0.22; width: 2; height: 24; color: Qt.rgba(1, 1, 1, 0.22) }
-  Rectangle { x: pan.width * 0.78 - 2; width: 2; height: 24; color: Qt.rgba(1, 1, 1, 0.22) }
+  readonly property real dishY: 52
+
+  // hanger strings
+  Rectangle { x: pan.width * 0.24; y: 2; width: 2; height: pan.dishY - 2; color: Qt.rgba(1, 1, 1, 0.22) }
+  Rectangle { x: pan.width * 0.76 - 2; y: 2; width: 2; height: pan.dishY - 2; color: Qt.rgba(1, 1, 1, 0.22) }
 
   Rectangle {
     id: dish
-    y: 24
+    y: pan.dishY
     width: parent.width
     height: 12
     radius: 6
@@ -53,12 +54,12 @@ Item {
   Rectangle {
     visible: pan.isCard
     anchors.bottom: dish.top
-    anchors.bottomMargin: 6
+    anchors.bottomMargin: 5
     anchors.horizontalCenter: parent.horizontalCenter
-    width: cardText.implicitWidth + 28
-    height: cardText.implicitHeight + 16
-    radius: 12
-    color: Qt.rgba(1, 1, 1, 0.07)
+    width: cardText.implicitWidth + 26
+    height: cardText.implicitHeight + 14
+    radius: 11
+    color: Qt.rgba(1, 1, 1, 0.08)
     border.width: 2
     border.color: Qt.rgba(pan.tint.r, pan.tint.g, pan.tint.b, 0.6)
     Text {
@@ -67,19 +68,18 @@ Item {
       text: pan.cardLabel
       color: "#edeffb"
       font.family: pan.fontFamily
-      font.pixelSize: 26
+      font.pixelSize: 24
       font.bold: true
     }
   }
 
-  // place-value blocks, sorted big-first, wrapping so any number fit
+  // place-value blocks, wrapping so any number fit
   Flow {
     visible: !pan.isCard
     anchors.bottom: dish.top
     anchors.bottomMargin: 3
     anchors.horizontalCenter: parent.horizontalCenter
-    width: pan.width - 8
-    layoutDirection: Qt.LeftToRight
+    width: pan.width - 6
     spacing: 3
     Repeater {
       model: pan.pieces
