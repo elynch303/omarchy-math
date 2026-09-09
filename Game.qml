@@ -69,8 +69,10 @@ Item {
 
   readonly property var meta: Progression.WORLD_META[world]
 
-  // The intro levels use the hands-on block round instead of the quiz.
-  readonly property bool blockMode: (world === "add" || world === "sub") && level <= 3
+  // The first two add/sub levels (numbers within 10) use the hands-on block
+  // round. Level 3+ (within 20) would mean dragging up to 20 blocks — too
+  // tedious — so those stay as the quick quiz.
+  readonly property bool blockMode: (world === "add" || world === "sub") && level <= 2
 
   function openWorld(w) {
     game.world = w

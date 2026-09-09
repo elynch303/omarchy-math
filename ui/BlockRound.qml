@@ -2,12 +2,12 @@ import QtQuick
 
 // Hands-on round for the intro levels (add/sub, levels 1-3).
 //
-//   play   - drag the two groups into the box (add), or drag blocks out to the
-//            bin (sub)
-//   merge  - the blocks tumble in and the lid slams shut (short)
-//   closed - the box is shut with a "?" ; kid taps how many are inside
-//   reveal - the lid opens and the blocks count themselves up
-//   done   - mascot reacts, tap / Enter to continue
+// Addition: a pool of loose blocks (always the same count for the level, so the
+//   pile never gives away the answer). The kid drags `a` blocks into the box,
+//   then `b` more, the lid shuts, and they tap how many are inside.
+// Subtraction: the box holds `a` blocks; the kid drags `b` out to the bin, the
+//   lid shuts on what's left.
+// Then the box opens and the blocks count themselves up to check.
 //
 // Shares Game round state, so scoring / streak / stars are unchanged.
 FocusScope {
@@ -28,35 +28,28 @@ FocusScope {
     return c ? c : "#5bc98c"
   }
 
+  // always the same pool size for a level, so the count is no help
+  readonly property int poolSize: total <= 10 ? 10 : 20
+
+  // play | merge | closed | reveal | done
   property string phase: "play"
   property int countShown: 0
   property int chosen: -1
 
-  property bool pouredA: false
-  property bool pouredB: false
-  readonly property int inBox: (pouredA ? a : 0) + (pouredB ? b : 0)
-  property int removed: 0
-
-  // how tall the box must be to hold the subtraction field
-  readonly property real subBoxHeight: {
-    var cols = a <= 14 ? 5 : 7
-    var cell = a <= 14 ? 44 : 38
-    return Math.ceil(Math.max(1, a) / cols) * cell + 22
-  }
+  // how many blocks the kid has moved (into the box for add, to the bin for sub)
+  readonly property int moved: field ? field.taken : 0
+  // addition sub-step: first put in `a`, then `b`
+  readonly property bool onSecondStep: isAdd && moved >= a
 
   onQChanged: root.reset()
   Component.onCompleted: root.reset()
   function reset() {
     phase = "play"; countShown = 0; chosen = -1
-    pouredA = false; pouredB = false; removed = 0
-    if (subField) subField.rebuild()
+    if (field) field.rebuild()
   }
 
-  function pourGroup(which) {
-    if (phase !== "play") return
-    if (which === "A") pouredA = true
-    else if (which === "B") pouredB = true
-    if (inBox === total) startMerge()
+  function onAllMoved() {
+    if (moved >= (isAdd ? total : b)) startMerge()
   }
 
   function startMerge() {
@@ -76,7 +69,7 @@ FocusScope {
 
   Timer {
     id: mergeTimer
-    interval: root.game && root.game.reduceMotion ? 150 : 650
+    interval: root.game && root.game.reduceMotion ? 150 : 600
     onTriggered: root.phase = "closed"
   }
   Timer {
@@ -94,17 +87,10 @@ FocusScope {
     onTriggered: root.proceed()
   }
 
-  // Keyboard fallback: Space/Enter does the next obvious thing, so the round is
-  // playable without a mouse (and testable).
   function keyStep() {
-    if (root.phase !== "play") return
-    if (root.isAdd) {
-      if (!root.pouredA) root.pourGroup("A")
-      else if (!root.pouredB) root.pourGroup("B")
-    } else if (subField) {
-      var idx = subField.present[subField.present.length - 1]
-      if (idx !== undefined) subField.remove(idx)
-    }
+    if (root.phase !== "play" || !field) return
+    var idx = field.present[field.present.length - 1]
+    if (idx !== undefined) field.take(idx)
   }
 
   Keys.onEscapePressed: root.quit()
@@ -120,7 +106,6 @@ FocusScope {
     }
   }
 
-  // gentle numbers for the closed step: the answer plus close neighbours
   readonly property var confirmOptions: {
     if (!q) return []
     var near = [total - 1, total + 1, total - 2, total + 2]
@@ -135,7 +120,7 @@ FocusScope {
   Column {
     anchors.centerIn: parent
     width: Math.min(parent.width - 56, 620)
-    spacing: Math.round(16 * (game ? game.textScale : 1))
+    spacing: Math.round(14 * (game ? game.textScale : 1))
 
     // top bar
     Item {
@@ -171,11 +156,13 @@ FocusScope {
       horizontalAlignment: Text.AlignHCenter
       text: {
         if (root.phase === "merge") return "…"
-        if (root.phase === "closed") return "How many in the box?"
+        if (root.phase === "closed") return root.isAdd ? "How many in the box?" : "How many are left?"
         if (root.phase === "reveal") return "Let's check…"
         if (root.phase === "done") return root.chosen === root.total ? "You got it!" : ("It's " + root.total)
-        return root.isAdd ? "Drag both groups into the box"
-                          : ("Drag " + root.b + " block" + (root.b === 1 ? "" : "s") + " out to the bin")
+        if (root.isAdd) return root.onSecondStep
+          ? ("Now put in " + root.b + " more")
+          : ("Put " + root.a + " block" + (root.a === 1 ? "" : "s") + " in the box")
+        return "Drag " + root.b + " block" + (root.b === 1 ? "" : "s") + " out to the bin"
       }
       color: root.phase === "done" && root.chosen === root.total ? (game ? game.colCorrect : "#63d0a0")
            : (game ? game.colText : "#edeffb")
@@ -184,9 +171,28 @@ FocusScope {
       font.bold: true
     }
 
+    // step counter (play only)
     Text {
       width: parent.width
       horizontalAlignment: Text.AlignHCenter
+      visible: root.phase === "play"
+      text: {
+        if (!root.q) return ""
+        if (root.isAdd) return root.onSecondStep
+          ? ((root.moved - root.a) + " / " + root.b)
+          : (root.moved + " / " + root.a)
+        return root.moved + " / " + root.b
+      }
+      color: root.tint
+      font.family: game ? game.fontFamily : "sans-serif"
+      font.pixelSize: Math.round(18 * (game ? game.textScale : 1))
+      font.bold: true
+    }
+
+    Text {
+      width: parent.width
+      horizontalAlignment: Text.AlignHCenter
+      visible: root.phase !== "play"
       text: root.q ? (root.q.text + " = " + (root.phase === "done" ? root.total : "?")) : ""
       color: game ? game.colMuted : "#9aa2c8"
       font.family: game ? game.fontFamily : "sans-serif"
@@ -197,62 +203,73 @@ FocusScope {
     Item {
       id: stage
       width: parent.width
-      height: Math.round(Math.max(258, box.height + 96) * (game ? game.textScale : 1))
+      height: Math.round(256 * (game ? game.textScale : 1))
 
-      // the box — the subtraction tray, the addition drop target, and the
-      // count-up display, depending on phase.
+      // the box: destination for addition, holder for subtraction, and the
+      // count-up display.
       BlockBox {
         id: box
         anchors.bottom: parent.bottom
         anchors.horizontalCenter: parent.horizontalCenter
         width: Math.min(parent.width * 0.72, 380)
-        height: root.isAdd ? 116 : Math.max(116, root.subBoxHeight)
+        height: root.isAdd ? 112 : Math.max(112, root.subBoxHeight)
         tint: root.tint
         reduceMotion: game ? game.reduceMotion : false
-        // open except while the kid is answering
         lidOpen: root.phase !== "closed"
 
-        // subtraction: the blocks the kid drags OUT sit in the box
-        SubBlockField {
-          id: subField
+        // subtraction field lives in the box
+        DragBlockField {
+          id: subFieldHolder
           anchors.centerIn: parent
           visible: !root.isAdd && root.phase === "play"
           total: root.a
-          toRemove: root.b
+          takeCount: root.b
           tint: root.tint
           reduceMotion: game ? game.reduceMotion : false
-          binArea: bin
-          onRemovedChanged: root.removed = removed
-          onAllRemoved: root.startMerge()
+          targetArea: bin
+          onAllTaken: root.onAllMoved()
         }
 
-        // addition: the whole box is the drop target for the two groups
+        // addition drop target
         DropArea {
+          id: boxDrop
           anchors.fill: parent
           enabled: root.isAdd && root.phase === "play"
-          keys: ["A", "B"]
-          onDropped: function (drop) {
-            root.pourGroup(drop.keys.length > 0 ? drop.keys[0] : "")
-            drop.accept()
-          }
         }
 
-        // the pile / count-up
+        // count-up (merge / reveal / done)
         Grid {
           anchors.centerIn: parent
           visible: root.phase === "merge" || root.phase === "reveal" || root.phase === "done"
-                   || (root.isAdd && root.inBox > 0)
           columns: Math.min(10, Math.max(1, root.total))
           spacing: 5
           Repeater {
-            model: (root.phase === "reveal" || root.phase === "done") ? root.total
-                 : root.isAdd ? root.inBox : (root.a - root.removed)
+            model: root.total
             delegate: Block {
               required property int index
               tint: root.tint
               reduceMotion: game ? game.reduceMotion : false
               lit: root.phase !== "reveal" || index < root.countShown
-              width: 26; height: 26
+              width: 24; height: 24
+            }
+          }
+        }
+
+        // a jumbled heap while filling (add) — overlapping, so it can't be
+        // counted at a glance
+        Item {
+          anchors.centerIn: parent
+          width: 120; height: 60
+          visible: root.isAdd && root.phase === "play" && root.moved > 0
+          Repeater {
+            model: Math.min(root.moved, 9)
+            delegate: Rectangle {
+              required property int index
+              width: 22; height: 22; radius: 6
+              color: Qt.rgba(root.tint.r, root.tint.g, root.tint.b, 0.85)
+              x: 60 + (index % 3) * 10 - 24 + (index * 7 % 13) - 6
+              y: 30 + Math.floor(index / 3) * 8 - 12 + (index * 5 % 11) - 5
+              rotation: index * 20 % 40 - 20
             }
           }
         }
@@ -270,18 +287,33 @@ FocusScope {
         }
       }
 
+      // ADDITION: the pool of loose blocks, above the box.
+      // Only `a` can be moved until the first step is done, then `b` more.
+      DragBlockField {
+        id: addFieldHolder
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+        visible: root.isAdd && root.phase === "play"
+        total: root.poolSize
+        takeCount: root.onSecondStep ? root.total : root.a
+        tint: root.tint
+        reduceMotion: game ? game.reduceMotion : false
+        targetArea: boxDrop
+        onAllTaken: root.onAllMoved()
+      }
+
       // SUBTRACTION: the bin, beside the box
       DropArea {
         id: bin
         width: 112
-        height: 116
+        height: 112
         anchors.right: parent.right
         anchors.verticalCenter: box.verticalCenter
         visible: !root.isAdd && root.phase === "play"
         Rectangle {
           anchors.fill: parent
           radius: 16
-          color: bin.containsDrag && root.removed < root.b
+          color: bin.containsDrag && root.moved < root.b
                  ? Qt.rgba(0.95, 0.5, 0.55, 0.22) : Qt.rgba(1, 1, 1, 0.05)
           border.width: 2
           border.color: Qt.rgba(0.95, 0.55, 0.6, 0.5)
@@ -291,7 +323,7 @@ FocusScope {
             Text { anchors.horizontalCenter: parent.horizontalCenter; text: "🗑"; font.pixelSize: 30 }
             Text {
               anchors.horizontalCenter: parent.horizontalCenter
-              text: root.removed + " / " + root.b
+              text: root.moved + " / " + root.b
               color: game ? game.colMuted : "#9aa2c8"
               font.family: game ? game.fontFamily : "sans-serif"
               font.pixelSize: 14
@@ -300,53 +332,6 @@ FocusScope {
           }
         }
       }
-
-      // ADDITION: drop target over the box + the two draggable groups
-      Item {
-        id: addArea
-        anchors.fill: parent
-        visible: root.isAdd && root.phase === "play"
-
-        function place() {
-          if (width <= 0) return
-          if (!groupA.dragging) { groupA.restX = Math.round(width * 0.12); groupA.restY = 2 }
-          if (!groupB.dragging) { groupB.restX = Math.round(width * 0.88 - groupB.width); groupB.restY = 2 }
-          groupA.sinkX = box.x + box.width / 2 - groupA.width / 2
-          groupA.sinkY = box.y + box.height / 2 - groupA.height / 2
-          groupB.sinkX = box.x + box.width / 2 - groupB.width / 2
-          groupB.sinkY = box.y + box.height / 2 - groupB.height / 2
-        }
-        onWidthChanged: place()
-        onVisibleChanged: if (visible) place()
-        Component.onCompleted: place()
-        Connections {
-          target: groupB
-          function onWidthChanged() { addArea.place() }
-        }
-        Connections {
-          target: box
-          function onXChanged() { addArea.place() }
-          function onWidthChanged() { addArea.place() }
-        }
-        Connections {
-          target: root
-          function onQChanged() { Qt.callLater(addArea.place) }
-        }
-
-        BlockGroup {
-          id: groupA
-          groupId: "A"; count: root.a; tint: root.tint
-          poured: root.pouredA
-          reduceMotion: game ? game.reduceMotion : false
-        }
-        BlockGroup {
-          id: groupB
-          groupId: "B"; count: root.b; tint: root.tint
-          poured: root.pouredB
-          reduceMotion: game ? game.reduceMotion : false
-        }
-      }
-
     }
 
     // ---- closed: tap how many ------------------------------------
@@ -387,8 +372,8 @@ FocusScope {
 
     Mascot {
       anchors.horizontalCenter: parent.horizontalCenter
-      implicitWidth: 58
-      implicitHeight: 58
+      implicitWidth: 56
+      implicitHeight: 56
       reduceMotion: game ? game.reduceMotion : false
       bodyColor: root.phase === "done" && root.chosen !== root.total
                  ? (game ? game.colWrong : "#f4a6c0") : root.tint
@@ -398,6 +383,15 @@ FocusScope {
         return "idle"
       }
     }
+  }
+
+  // which field is active
+  readonly property var field: root.isAdd ? addFieldHolder : subFieldHolder
+
+  readonly property real subBoxHeight: {
+    var cols = Math.max(1, Math.min(a <= 12 ? 5 : 7, a))
+    var cell = a <= 12 ? 44 : 38
+    return Math.ceil(Math.max(1, a) / cols) * cell + 22
   }
 
   MouseArea {
