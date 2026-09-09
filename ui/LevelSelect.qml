@@ -9,9 +9,13 @@ FocusScope {
 
   Keys.onEscapePressed: root.close()
 
-  readonly property string world: game ? game.world : "add"
-  readonly property var meta: Progression.WORLD_META[world]
+  readonly property string world: (game && game.world) ? game.world : "add"
+  readonly property var meta: Progression.WORLD_META[world] || Progression.WORLD_META.add
   readonly property int levelCount: meta ? meta.levels : 7
+  readonly property color worldTint: {
+    var c = (game && game.worldColor) ? game.worldColor[world] : ""
+    return c ? c : "#5bc98c"
+  }
 
   Column {
     anchors.centerIn: parent
@@ -98,7 +102,7 @@ FocusScope {
           readonly property bool unlocked: game ? Progression.isUnlocked(game.progress, root.world, level) : level === 1
           readonly property int stars: game ? Progression.bestStars(game.progress, root.world, level) : 0
           readonly property var blurb: Progression.LEVEL_BLURBS[root.world]
-          readonly property color tint: game ? game.worldColor[root.world] : "#5bc98c"
+          readonly property color tint: root.worldTint
           width: (grid.width - grid.spacing * (grid.columns - 1)) / grid.columns
           height: width * 0.82
 
