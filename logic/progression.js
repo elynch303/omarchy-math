@@ -43,20 +43,46 @@ function bestStars(progress, world, level) {
   return (lv && lv.bestStars) || 0;
 }
 
-// Level 1 of every world is always open. Any later level opens once the
-// previous one has been cleared with at least 2 stars.
+// When a grown-up sets the child's age, levels below that age band are opened
+// automatically so an older kid isn't forced through "sums to 5". Age 0 (unset)
+// or under 7 = start everyone at level 1.
+var AGE_START = {
+  7:  { add: 2, sub: 2, mul: 1, div: 1 },
+  8:  { add: 3, sub: 3, mul: 1, div: 1 },
+  9:  { add: 4, sub: 4, mul: 2, div: 2 },
+  10: { add: 5, sub: 5, mul: 3, div: 3 },
+  11: { add: 5, sub: 5, mul: 4, div: 4 },
+  12: { add: 6, sub: 6, mul: 5, div: 5 }
+};
+
+function childAge(progress) {
+  var a = progress && progress.settings ? Math.floor(Number(progress.settings.age)) : 0;
+  return (a >= 5 && a <= 12) ? a : 0;
+}
+
+function ageStartLevel(progress, world) {
+  var age = childAge(progress);
+  if (age < 7) return 1;
+  var band = AGE_START[age] || AGE_START[12];
+  return band[world] || 1;
+}
+
+// Level 1 is always open, as is anything at or below the child's age band.
+// Otherwise a level opens once the previous one has 2+ stars.
 function isUnlocked(progress, world, level) {
   if (level <= 1) return true;
   if (level > levelCount(world)) return false;
+  if (level <= ageStartLevel(progress, world)) return true;
   return bestStars(progress, world, level - 1) >= 2;
 }
 
-// The level the kid should land on when they open a world: the first one that
-// isn't yet 3-starred, clamped to what's unlocked.
+// The level the kid should land on when they open a world: the first unfinished
+// one at or above their age band.
 function suggestedLevel(progress, world) {
   var count = levelCount(world);
-  for (var lv = 1; lv <= count; lv++) {
-    if (!isUnlocked(progress, world, lv)) return lv - 1 < 1 ? 1 : lv - 1;
+  var floor = ageStartLevel(progress, world);
+  for (var lv = floor; lv <= count; lv++) {
+    if (!isUnlocked(progress, world, lv)) return Math.max(floor, lv - 1);
     if (bestStars(progress, world, lv) < 3) return lv;
   }
   return count;
@@ -80,6 +106,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     WORLD_ORDER: WORLD_ORDER, WORLD_META: WORLD_META, LEVEL_BLURBS: LEVEL_BLURBS,
     ROUND_SIZE: ROUND_SIZE, starsFor: starsFor, levelCount: levelCount,
+    childAge: childAge, ageStartLevel: ageStartLevel,
     bestStars: bestStars, isUnlocked: isUnlocked, suggestedLevel: suggestedLevel,
     worldStars: worldStars, totalStars: totalStars, maxStars: maxStars
   };

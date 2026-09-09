@@ -189,6 +189,66 @@ FocusScope {
           checked: g ? (g.settings.largeText === true) : false
           onToggled: function (v) { root.game.setSetting("largeText", v) }
         }
+
+        // child's age — opens the levels that are too easy for an older kid
+        Rectangle {
+          width: parent.width
+          height: ageCol.implicitHeight + 20
+          radius: 12
+          color: Qt.rgba(1, 1, 1, 0.04)
+          Column {
+            id: ageCol
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: 14
+            anchors.rightMargin: 14
+            spacing: 8
+            Text {
+              text: "Child's age"
+              color: g ? g.colText : "#edeffb"
+              font.family: g ? g.fontFamily : "sans-serif"
+              font.pixelSize: 15
+            }
+            Text {
+              text: "Skips levels that are too easy. Lower levels stay playable."
+              color: g ? g.colMuted : "#9aa2c8"
+              font.family: g ? g.fontFamily : "sans-serif"
+              font.pixelSize: 12
+            }
+            Flow {
+              width: parent.width
+              spacing: 6
+              Repeater {
+                model: [0, 5, 6, 7, 8, 9, 10, 11, 12]
+                delegate: Rectangle {
+                  required property int modelData
+                  readonly property bool sel: g && (g.settings.age || 0) === modelData
+                  width: modelData === 0 ? 44 : 34
+                  height: 34
+                  radius: 9
+                  color: sel ? (g ? g.colAccent : "#7aa2f7")
+                       : ageMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.06)
+                  Text {
+                    anchors.centerIn: parent
+                    text: modelData === 0 ? "Off" : modelData
+                    color: parent.sel ? "#10131f" : (g ? g.colText : "#edeffb")
+                    font.family: g ? g.fontFamily : "sans-serif"
+                    font.pixelSize: modelData === 0 ? 13 : 15
+                    font.bold: parent.sel
+                  }
+                  MouseArea {
+                    id: ageMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.game.setSetting("age", modelData)
+                  }
+                }
+              }
+            }
+          }
+        }
       }
 
       // reset + done

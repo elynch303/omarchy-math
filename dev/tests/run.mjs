@@ -120,6 +120,21 @@ const digs = (n) => [n % 10, Math.floor(n / 10) % 10];
 
   eq("worldStars sums level bests", prog.worldStars(p, "add"), 3);
   eq("maxStars add", prog.maxStars("add"), 21);
+
+  // ---- age bands
+  const withAge = (n) => { const x = store.emptyProgress(); x.settings.age = n; return x; };
+  eq("age unset -> start level 1", prog.ageStartLevel(store.emptyProgress(), "add"), 1);
+  eq("age 6 -> still level 1", prog.ageStartLevel(withAge(6), "add"), 1);
+  eq("age 9 add -> level 4", prog.ageStartLevel(withAge(9), "add"), 4);
+  eq("age 9 mul -> level 2", prog.ageStartLevel(withAge(9), "mul"), 2);
+  eq("age 12 add -> level 6", prog.ageStartLevel(withAge(12), "add"), 6);
+  ok("age 9: level 4 unlocked without stars", prog.isUnlocked(withAge(9), "add", 4));
+  ok("age 9: level 3 still open (lower levels playable)", prog.isUnlocked(withAge(9), "add", 3));
+  ok("age 9: level 5 still gated by stars", !prog.isUnlocked(withAge(9), "add", 5));
+  eq("age 9: suggestedLevel starts at the band", prog.suggestedLevel(withAge(9), "add"), 4);
+  ok("bad age clamps to unset", prog.childAge(withAge(99)) === 0 && prog.childAge(withAge(3)) === 0);
+  eq("setSetting age stores a number", store.setSetting(store.emptyProgress(), "age", "10").settings.age, 10);
+  eq("setSetting age rejects out-of-range", store.setSetting(store.emptyProgress(), "age", 40).settings.age, 0);
 }
 
 // -------------------------------------------------------------------- store

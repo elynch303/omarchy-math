@@ -13,7 +13,7 @@ var CURRENT_VERSION = 1;
 function emptyProgress() {
   return {
     version: CURRENT_VERSION,
-    settings: { sound: true, reduceMotion: false, largeText: false },
+    settings: { sound: true, reduceMotion: false, largeText: false, age: 0 },
     worlds: {}
   };
 }
@@ -31,6 +31,8 @@ function normalize(raw) {
     if (typeof raw.settings.sound === "boolean") base.settings.sound = raw.settings.sound;
     if (typeof raw.settings.reduceMotion === "boolean") base.settings.reduceMotion = raw.settings.reduceMotion;
     if (typeof raw.settings.largeText === "boolean") base.settings.largeText = raw.settings.largeText;
+    var age = Math.floor(Number(raw.settings.age));
+    base.settings.age = (age >= 5 && age <= 12) ? age : 0;
   }
 
   if (isObject(raw.worlds)) {
@@ -82,7 +84,13 @@ function recordRound(progress, world, level, correct, total, stars) {
 
 function setSetting(progress, key, value) {
   var next = normalize(progress);
-  if (key in next.settings) next.settings[key] = !!value;
+  if (!(key in next.settings)) return next;
+  if (key === "age") {
+    var age = Math.floor(Number(value));
+    next.settings.age = (age >= 5 && age <= 12) ? age : 0;
+  } else {
+    next.settings[key] = !!value;
+  }
   return next;
 }
 
