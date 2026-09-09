@@ -21,7 +21,7 @@ Item {
   readonly property alias dropArea: drop
   readonly property bool isCard: cardLabel.length > 0
 
-  width: 168
+  width: 210
   height: 150
   rotation: counterRotation
   transformOrigin: Item.Top
@@ -72,12 +72,14 @@ Item {
     }
   }
 
-  // place-value blocks, tallest first, bottom-aligned on the dish
-  Row {
+  // place-value blocks, sorted big-first, wrapping so any number fit
+  Flow {
     visible: !pan.isCard
     anchors.bottom: dish.top
     anchors.bottomMargin: 3
     anchors.horizontalCenter: parent.horizontalCenter
+    width: pan.width - 8
+    layoutDirection: Qt.LeftToRight
     spacing: 3
     Repeater {
       model: pan.pieces
@@ -87,7 +89,6 @@ Item {
         value: modelData
         tint: pan.tint
         reduceMotion: pan.reduceMotion
-        anchors.bottom: parent.bottom
         MouseArea {
           anchors.fill: parent
           enabled: pan.removable

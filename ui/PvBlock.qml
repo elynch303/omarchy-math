@@ -8,7 +8,7 @@ Rectangle {
   property color tint: "#5bc98c"
   property bool reduceMotion: false
 
-  readonly property real unit: 21
+  property real unit: 18
   readonly property int cols: value === 10 ? 2 : 1
   readonly property int rows: value === 1 ? 1 : 5
 

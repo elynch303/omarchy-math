@@ -44,6 +44,7 @@ FocusScope {
     if (phase !== "play") return
     var s = panStack.slice()
     s.push(v)
+    s.sort(function (x, y) { return y - x })   // big blocks first
     panStack = s
     if (rightWeight > answer) overshoots += 1
   }
