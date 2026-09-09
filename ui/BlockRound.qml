@@ -94,9 +94,24 @@ FocusScope {
     onTriggered: root.proceed()
   }
 
+  // Keyboard fallback: Space/Enter does the next obvious thing, so the round is
+  // playable without a mouse (and testable).
+  function keyStep() {
+    if (root.phase !== "play") return
+    if (root.isAdd) {
+      if (!root.pouredA) root.pourGroup("A")
+      else if (!root.pouredB) root.pourGroup("B")
+    } else if (subField) {
+      var idx = subField.present[subField.present.length - 1]
+      if (idx !== undefined) subField.remove(idx)
+    }
+  }
+
   Keys.onEscapePressed: root.quit()
   Keys.onPressed: function (event) {
-    if (root.phase === "closed" && event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
+    if (root.phase === "play" && (event.key === Qt.Key_Return || event.key === Qt.Key_Space)) {
+      root.keyStep(); event.accepted = true
+    } else if (root.phase === "closed" && event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
       var opts = root.confirmOptions
       if (event.key - Qt.Key_1 < opts.length) root.startReveal(opts[event.key - Qt.Key_1])
       event.accepted = true
@@ -211,6 +226,17 @@ FocusScope {
           onAllRemoved: root.startMerge()
         }
 
+        // addition: the whole box is the drop target for the two groups
+        DropArea {
+          anchors.fill: parent
+          enabled: root.isAdd && root.phase === "play"
+          keys: ["A", "B"]
+          onDropped: function (drop) {
+            root.pourGroup(drop.keys.length > 0 ? drop.keys[0] : "")
+            drop.accept()
+          }
+        }
+
         // the pile / count-up
         Grid {
           anchors.centerIn: parent
@@ -293,15 +319,18 @@ FocusScope {
         onWidthChanged: place()
         onVisibleChanged: if (visible) place()
         Component.onCompleted: place()
-        Connections { target: groupB; function onWidthChanged() { addArea.place() } }
-
-        DropArea {
-          anchors.fill: box
-          keys: ["A", "B"]
-          onDropped: function (drop) {
-            root.pourGroup(drop.keys.length > 0 ? drop.keys[0] : "")
-            drop.accept()
-          }
+        Connections {
+          target: groupB
+          function onWidthChanged() { addArea.place() }
+        }
+        Connections {
+          target: box
+          function onXChanged() { addArea.place() }
+          function onWidthChanged() { addArea.place() }
+        }
+        Connections {
+          target: root
+          function onQChanged() { Qt.callLater(addArea.place) }
         }
 
         BlockGroup {
