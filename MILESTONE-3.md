@@ -29,6 +29,29 @@ draft of `Confetti.qml` made the whole QML tree fail to load with only
 M3 wiring got reverted and then rebuilt. All restored; `dev/harness.qml` and
 `dev/shoot.qml` load clean.
 
+## In-shell verification (done)
+
+Ran the real plugin in the live Omarchy shell (window kept off the active
+workspace):
+
+- **All `ui/` components compile** in the real Quickshell — 0 warnings/errors
+  after the fix below.
+- **Persistence read** — a seeded `progress.json` loads correctly
+  (`FileView` + `store.parse`).
+- **Persistence write** — a simulated finished round serialises back to
+  `progress.json` (`store.serialize` + `FileView.setText` + `atomicWrites`).
+- Window renders and is managed by Hyprland like any app.
+
+### Bug found & fixed in-shell
+
+`ui/LevelSelect.qml` passed a colour **string** as the first argument to
+`Qt.rgba()` (`Qt.rgba(game.worldColor[world], alpha)`). The Qt5-based `qml`
+harness silently tolerated it; the real Quickshell logged
+`Unable to determine callable overload` on every level card. Fixed to
+`Qt.rgba(tint.r, tint.g, tint.b, alpha)` via a `readonly property color tint`.
+`dev/check.sh` now walks every world's level map and fails on any QML runtime
+error, so this class of bug is caught headlessly from now on.
+
 ## Still open (post-M3)
 
 - **Sound** — the toggle persists but no audio is wired yet (needs a working

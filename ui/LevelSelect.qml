@@ -98,6 +98,7 @@ FocusScope {
           readonly property bool unlocked: game ? Progression.isUnlocked(game.progress, root.world, level) : level === 1
           readonly property int stars: game ? Progression.bestStars(game.progress, root.world, level) : 0
           readonly property var blurb: Progression.LEVEL_BLURBS[root.world]
+          readonly property color tint: game ? game.worldColor[root.world] : "#5bc98c"
           width: (grid.width - grid.spacing * (grid.columns - 1)) / grid.columns
           height: width * 0.82
 
@@ -108,7 +109,7 @@ FocusScope {
                  : cellMouse.containsMouse ? (game ? game.colSurfaceAlt : "#363b54")
                  : (game ? game.colSurface : "#2b2f42")
             border.width: 2
-            border.color: cell.unlocked ? Qt.rgba(game ? game.worldColor[root.world] : "#5bc98c", cellMouse.containsMouse ? 0.9 : 0.35)
+            border.color: cell.unlocked ? Qt.rgba(cell.tint.r, cell.tint.g, cell.tint.b, cellMouse.containsMouse ? 0.9 : 0.35)
                                         : Qt.rgba(1, 1, 1, 0.05)
             opacity: cell.unlocked ? 1.0 : 0.55
 

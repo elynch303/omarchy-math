@@ -48,22 +48,25 @@ Window {
       win.step += 1
       switch (win.step) {
         case 1: grab("1-home"); break
-        case 2: game.openWorld("mul"); break
-        case 3: grab("2-levels"); break
-        case 4: game.startLevel(5); break
-        case 5: grab("3-round"); break
-        case 6:
+        // visit every world's level map so the per-world tint paths all run
+        case 2: game.openWorld("add"); break
+        case 3: game.openWorld("sub"); break
+        case 4: game.openWorld("mul"); break
+        case 5: grab("2-levels"); break
+        case 6: game.startLevel(5); break
+        case 7: grab("3-round"); break
+        case 8:
           game.correctCount = 10
           game.bestStreak = 10
           game.finish()
           break
-        case 7: grab("4-result"); break
-        case 8: game.screen = "home"; break
-        case 9: game.openWorld("div"); game.startLevel(6); break
-        case 10: grab("5-round-div"); break
-        case 11: game.screen = "grownups"; break
-        case 12: grab("6-grownups"); break
-        case 13: Qt.quit(); break
+        case 9: grab("4-result"); break
+        case 10: game.screen = "home"; break
+        case 11: game.openWorld("div"); game.startLevel(6); break
+        case 12: grab("5-round-div"); break
+        case 13: game.screen = "grownups"; break
+        case 14: grab("6-grownups"); break
+        case 15: Qt.quit(); break
       }
     }
   }

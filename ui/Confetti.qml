@@ -8,12 +8,11 @@ Item {
   property var colors: ["#63d0a0", "#7aa2f7", "#ffce54", "#f4a6c0", "#c98adf"]
   property int pieces: 16
 
+  // Each burst() bumps this; every piece watches it and re-runs its flight.
+  property int salvo: 0
+
   function burst() {
-    if (fx.reduceMotion) return
-    for (var i = 0; i < rep.count; i++) {
-      var it = rep.itemAt(i)
-      if (it) it.go()
-    }
+    if (!fx.reduceMotion) fx.salvo += 1
   }
 
   Repeater {
@@ -31,13 +30,17 @@ Item {
       readonly property real spread: 40 + (index * 37) % 160
       readonly property real rise: 40 + (index * 53) % 70
 
-      function go() {
-        flight.stop()
-        bit.x = 0
-        bit.y = 0
-        bit.opacity = 1
-        bit.rotation = piece.index * 24
-        flight.start()
+      // Restart the flight whenever a new salvo is fired.
+      Connections {
+        target: fx
+        function onSalvoChanged() {
+          flight.stop()
+          bit.x = 0
+          bit.y = 0
+          bit.opacity = 1
+          bit.rotation = piece.index * 24
+          flight.start()
+        }
       }
 
       Rectangle {
