@@ -158,7 +158,7 @@ FocusScope {
       height: Math.round(250 * (game ? game.textScale : 1))
 
       readonly property real tilt: Math.max(-11, Math.min(11, root.diff * 3.2))
-      readonly property real pivotY: height * 0.32
+      readonly property real pivotY: height * 0.42
 
       Rectangle {
         width: 12
@@ -169,9 +169,11 @@ FocusScope {
         y: parent.pivotY
       }
       Canvas {
+        id: fulcrum
         width: 46; height: 32
         x: parent.width / 2 - 23
         y: parent.pivotY
+        Connections { target: root; function onTintChanged() { fulcrum.requestPaint() } }
         onPaint: {
           var ctx = getContext("2d")
           ctx.reset()
